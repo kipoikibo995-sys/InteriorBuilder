@@ -1,0 +1,526 @@
+// Các mẫu trang low-content. Mỗi mẫu vẽ bên trong "box" (vùng an toàn, inch).
+// Chữ in trên trang để tiếng Anh vì phần lớn khách mua KDP dùng tiếng Anh; các tiêu đề chính sửa được.
+(function (global) {
+  'use strict';
+
+  // ---------- Hàm dùng chung ----------
+
+  function st(ctx) {
+    return ctx.style; // { line, dark, text, lineW }
+  }
+
+  // Dòng "Label: ________" và trả về toạ độ y kế tiếp.
+  function labeledLine(p, ctx, label, x, y, w, size = 10) {
+    const s = st(ctx);
+    p.text(label, x, y, { size, color: s.text, bold: true });
+    const lw = p.textWidth(label, { size, bold: true }) + 0.08;
+    p.line(x + lw, y + 0.03, x + w, y + 0.03, { color: s.line, w: s.lineW });
+  }
+
+  // Tiêu đề trang + (tuỳ chọn) dòng ngày. Trả về y bắt đầu nội dung.
+  function header(p, box, ctx, title, opts = {}) {
+    const s = st(ctx);
+    let y = box.y;
+    if (title) {
+      y += 0.3;
+      p.text(title, box.x + box.w / 2, y, { size: opts.titleSize || 18, bold: true, align: 'center', color: s.text });
+      y += 0.18;
+    }
+    if (opts.date) {
+      y += 0.25;
+      const dw = Math.min(2.6, box.w * 0.55);
+      labeledLine(p, ctx, 'Date:', box.x + box.w - dw, y, dw);
+      y += 0.12;
+    }
+    return y + 0.1;
+  }
+
+  function hLines(p, ctx, x, y0, w, y1, spacing) {
+    const s = st(ctx);
+    let n = 0;
+    for (let y = y0 + spacing; y <= y1 + 1e-6; y += spacing) {
+      p.line(x, y, x + w, y, { color: s.line, w: s.lineW });
+      n++;
+    }
+    return n;
+  }
+
+  function checkbox(p, ctx, x, y, size = 0.13) {
+    const s = st(ctx);
+    p.rect(x, y - size, size, size, { color: s.dark, w: 0.6, radius: 0.015 });
+  }
+
+  // Tiêu đề phần nhỏ dạng thanh.
+  function sectionTitle(p, ctx, label, x, y, w) {
+    const s = st(ctx);
+    p.rect(x, y - 0.17, w, 0.24, { fill: s.fill, stroke: false });
+    p.text(label, x + 0.08, y, { size: 9.5, bold: true, color: s.text });
+  }
+
+  // Xếp nhiều phần (tiêu đề + n dòng kẻ) để vừa khít chiều cao còn lại.
+  function sections(p, box, ctx, y, list) {
+    const titleH = 0.32, gap = 0.12;
+    const totalLines = list.reduce((a, b) => a + b.lines, 0);
+    const avail = box.y + box.h - y - list.length * (titleH + gap);
+    const spacing = Math.max(0.22, Math.min(0.38, avail / totalLines));
+    list.forEach((sec) => {
+      y += 0.2;
+      sectionTitle(p, ctx, sec.title, box.x, y, box.w);
+      y += titleH - 0.2;
+      for (let i = 0; i < sec.lines; i++) {
+        y += spacing;
+        if (sec.numbered) p.text(`${i + 1}.`, box.x + 0.02, y - 0.04, { size: 9, color: st(ctx).text });
+        if (sec.checkbox) checkbox(p, ctx, box.x + 0.02, y - 0.04);
+        const off = sec.numbered || sec.checkbox ? 0.25 : 0;
+        p.line(box.x + off, y, box.x + box.w, y, { color: st(ctx).line, w: st(ctx).lineW });
+      }
+      y += gap;
+    });
+    return y;
+  }
+
+  // Lưới chia đều trong vùng, căn giữa.
+  function centeredGrid(len, spacing) {
+    const n = Math.floor(len / spacing + 1e-6);
+    return { n, offset: (len - n * spacing) / 2 };
+  }
+
+  // Bảng nhiều cột. cols: [{name, weight}]
+  function table(p, box, ctx, y, cols, rowH, opts = {}) {
+    const s = st(ctx);
+    const totalW = cols.reduce((a, c) => a + c.weight, 0);
+    const headH = opts.headH || 0.32;
+    const rows = Math.floor((box.y + box.h - y - headH) / rowH + 1e-6);
+    const bottom = y + headH + rows * rowH;
+    p.rect(box.x, y, box.w, headH, { fill: s.fill, stroke: false });
+    let x = box.x;
+    const xs = [x];
+    cols.forEach((c) => {
+      const w = (c.weight / totalW) * box.w;
+      p.text(c.name, x + w / 2, y + headH / 2 + 0.045, { size: opts.headSize || 8.5, bold: true, align: 'center', color: s.text });
+      x += w;
+      xs.push(x);
+    });
+    for (let r = 0; r <= rows; r++) {
+      const yy = y + headH + r * rowH;
+      p.line(box.x, yy, box.x + box.w, yy, { color: s.line, w: s.lineW });
+    }
+    p.line(box.x, y, box.x + box.w, y, { color: s.dark, w: 0.8 });
+    xs.forEach((xx) => p.line(xx, y, xx, bottom, { color: s.line, w: s.lineW }));
+    return { rows, bottom, xs, headH };
+  }
+
+  function parseColumns(str) {
+    return String(str || '')
+      .split(',')
+      .map((c) => c.trim())
+      .filter(Boolean)
+      .map((c) => {
+        const m = c.match(/^(.*?)\s*\*\s*(\d+(?:\.\d+)?)$/);
+        return m ? { name: m[1], weight: parseFloat(m[2]) } : { name: c, weight: 1 };
+      });
+  }
+
+  // ---------- Danh sách mẫu ----------
+
+  const T = [];
+
+  T.push({
+    id: 'blank', name: 'Trang trắng (Blank)', group: 'Cơ bản',
+    options: [],
+    draw() {},
+  });
+
+  T.push({
+    id: 'lined', name: 'Kẻ dòng (Lined / Ruled)', group: 'Cơ bản',
+    options: [
+      { key: 'spacing', label: 'Khoảng cách dòng', type: 'select', default: '0.28125', choices: [
+        ['0.34375', 'Wide ruled — 8.7 mm'], ['0.28125', 'College ruled — 7.1 mm'], ['0.25', 'Narrow — 6.35 mm'] ] },
+      { key: 'head', label: 'Đầu trang', type: 'select', default: 'date', choices: [
+        ['none', 'Không có'], ['date', 'Dòng ngày (Date)'], ['title', 'Tiêu đề + ngày'] ] },
+      { key: 'title', label: 'Tiêu đề', type: 'text', default: 'Notes' },
+      { key: 'marginLine', label: 'Kẻ lề dọc', type: 'checkbox', default: false },
+    ],
+    draw(p, box, o, ctx) {
+      let y = box.y;
+      if (o.head === 'date') y = header(p, box, ctx, null, { date: true });
+      if (o.head === 'title') y = header(p, box, ctx, o.title, { date: true });
+      const sp = parseFloat(o.spacing);
+      hLines(p, ctx, box.x, y, box.w, box.y + box.h, sp);
+      if (o.marginLine) {
+        const mx = box.x + (ctx.recto ? 0.6 : box.w - 0.6);
+        p.line(mx, y, mx, box.y + box.h, { color: ctx.style.dark, w: 0.6 });
+      }
+    },
+  });
+
+  T.push({
+    id: 'dotgrid', name: 'Chấm bi (Dot grid)', group: 'Cơ bản',
+    options: [
+      { key: 'spacing', label: 'Khoảng cách chấm', type: 'select', default: '0.19685', choices: [
+        ['0.19685', '5 mm'], ['0.25', '1/4 inch'], ['0.3937', '10 mm'] ] },
+      { key: 'dot', label: 'Cỡ chấm (pt)', type: 'number', default: 1.3, min: 0.5, max: 4, step: 0.1 },
+    ],
+    draw(p, box, o, ctx) {
+      const sp = parseFloat(o.spacing);
+      const gx = centeredGrid(box.w, sp), gy = centeredGrid(box.h, sp);
+      const d = o.dot / 72;
+      for (let i = 0; i <= gx.n; i++)
+        for (let j = 0; j <= gy.n; j++)
+          p.dot(box.x + gx.offset + i * sp, box.y + gy.offset + j * sp, d, ctx.style.dark);
+    },
+  });
+
+  T.push({
+    id: 'graph', name: 'Ô vuông (Graph / Grid)', group: 'Cơ bản',
+    options: [
+      { key: 'spacing', label: 'Cỡ ô', type: 'select', default: '0.25', choices: [
+        ['0.125', '1/8 inch'], ['0.19685', '5 mm'], ['0.2', '5 ô / inch'], ['0.25', '1/4 inch'], ['0.3937', '10 mm'] ] },
+      { key: 'major', label: 'Đường đậm mỗi N ô (0 = không)', type: 'number', default: 0, min: 0, max: 10, step: 1 },
+    ],
+    draw(p, box, o, ctx) {
+      const s = ctx.style, sp = parseFloat(o.spacing);
+      const gx = centeredGrid(box.w, sp), gy = centeredGrid(box.h, sp);
+      const x0 = box.x + gx.offset, y0 = box.y + gy.offset;
+      const x1 = x0 + gx.n * sp, y1 = y0 + gy.n * sp;
+      const major = parseInt(o.major, 10) || 0;
+      const opt = (i, n) => (major && i % major === 0) || i === 0 || i === n
+        ? { color: s.dark, w: 0.6 } : { color: s.line, w: s.lineW * 0.8 };
+      for (let i = 0; i <= gx.n; i++) p.line(x0 + i * sp, y0, x0 + i * sp, y1, opt(i, gx.n));
+      for (let j = 0; j <= gy.n; j++) p.line(x0, y0 + j * sp, x1, y0 + j * sp, opt(j, gy.n));
+    },
+  });
+
+  T.push({
+    id: 'handwriting', name: 'Luyện viết (Handwriting practice)', group: 'Trẻ em',
+    options: [
+      { key: 'row', label: 'Chiều cao mỗi dòng', type: 'select', default: '0.75', choices: [
+        ['0.5', '1/2 inch (lớn tuổi)'], ['0.75', '3/4 inch'], ['1', '1 inch (mẫu giáo)'] ] },
+      { key: 'name', label: 'Dòng Name / Date', type: 'checkbox', default: true },
+    ],
+    draw(p, box, o, ctx) {
+      const s = ctx.style;
+      let y = box.y;
+      if (o.name) {
+        y += 0.25;
+        labeledLine(p, ctx, 'Name:', box.x, y, box.w * 0.6 - 0.15);
+        labeledLine(p, ctx, 'Date:', box.x + box.w * 0.6, y, box.w * 0.4);
+        y += 0.2;
+      }
+      const h = parseFloat(o.row), gap = h * 0.35;
+      while (y + h <= box.y + box.h + 1e-6) {
+        p.line(box.x, y, box.x + box.w, y, { color: s.dark, w: 0.8 });
+        p.line(box.x, y + h / 2, box.x + box.w, y + h / 2, { color: s.line, w: 0.6, dash: [0.06, 0.05] });
+        p.line(box.x, y + h, box.x + box.w, y + h, { color: s.dark, w: 1.2 });
+        y += h + gap;
+      }
+    },
+  });
+
+  T.push({
+    id: 'music', name: 'Khuông nhạc (Music staff)', group: 'Cơ bản',
+    options: [
+      { key: 'staves', label: 'Số khuông / trang', type: 'number', default: 10, min: 4, max: 14, step: 1 },
+    ],
+    draw(p, box, o, ctx) {
+      const s = ctx.style, n = parseInt(o.staves, 10);
+      const slot = box.h / n;
+      const ls = Math.min(0.09, slot / 7);
+      for (let i = 0; i < n; i++) {
+        const top = box.y + i * slot + (slot - 4 * ls) / 2;
+        for (let k = 0; k < 5; k++) p.line(box.x, top + k * ls, box.x + box.w, top + k * ls, { color: s.dark, w: 0.6 });
+        p.line(box.x, top, box.x, top + 4 * ls, { color: s.dark, w: 0.6 });
+        p.line(box.x + box.w, top, box.x + box.w, top + 4 * ls, { color: s.dark, w: 0.6 });
+      }
+    },
+  });
+
+  T.push({
+    id: 'sketch', name: 'Sổ vẽ (Sketchbook)', group: 'Sáng tạo',
+    options: [
+      { key: 'caption', label: 'Dòng Title / Date bên dưới', type: 'checkbox', default: true },
+    ],
+    draw(p, box, o, ctx) {
+      const s = ctx.style;
+      const capH = o.caption ? 0.55 : 0;
+      p.rect(box.x, box.y, box.w, box.h - capH, { color: s.dark, w: 1 });
+      if (o.caption) {
+        const y = box.y + box.h - 0.1;
+        labeledLine(p, ctx, 'Title:', box.x, y, box.w * 0.62 - 0.15);
+        labeledLine(p, ctx, 'Date:', box.x + box.w * 0.62, y, box.w * 0.38);
+      }
+    },
+  });
+
+  T.push({
+    id: 'gratitude', name: 'Nhật ký biết ơn (Gratitude journal)', group: 'Nhật ký',
+    options: [
+      { key: 'title', label: 'Tiêu đề', type: 'text', default: 'Gratitude Journal' },
+      { key: 'affirm', label: 'Câu khẳng định (affirmation)', type: 'checkbox', default: true },
+    ],
+    draw(p, box, o, ctx) {
+      let y = header(p, box, ctx, o.title, { date: true, titleSize: 16 });
+      const list = [
+        { title: 'Today I am grateful for...', lines: 3, numbered: true },
+        { title: 'What would make today great?', lines: 3, numbered: true },
+        { title: 'Today\'s highlight', lines: 3 },
+        { title: 'Something I learned today', lines: 2 },
+      ];
+      if (o.affirm) list.push({ title: 'Daily affirmation', lines: 2 });
+      sections(p, box, ctx, y, list);
+    },
+  });
+
+  T.push({
+    id: 'daily', name: 'Kế hoạch ngày (Daily planner)', group: 'Planner',
+    options: [
+      { key: 'start', label: 'Giờ bắt đầu', type: 'number', default: 6, min: 0, max: 12, step: 1 },
+      { key: 'end', label: 'Giờ kết thúc', type: 'number', default: 21, min: 13, max: 23, step: 1 },
+      { key: 'h24', label: 'Định dạng 24 giờ', type: 'checkbox', default: false },
+    ],
+    draw(p, box, o, ctx) {
+      const s = ctx.style;
+      let y = box.y + 0.28;
+      labeledLine(p, ctx, 'Date:', box.x, y, box.w * 0.5);
+      const days = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+      const dx = box.w * 0.5 / 7;
+      days.forEach((d, i) => {
+        const cx = box.x + box.w * 0.5 + dx * (i + 0.5);
+        p.circle(cx, y - 0.04, 0.1, { stroke: true, color: s.dark, w: 0.5 });
+        p.text(d, cx, y - 0.01, { size: 7.5, align: 'center', color: s.text });
+      });
+      y += 0.2;
+      const colGap = 0.2, lw = box.w * 0.52, rw = box.w - lw - colGap;
+      const rx = box.x + lw + colGap;
+      const top = y;
+      // Lịch theo giờ
+      sectionTitle(p, ctx, 'Schedule', box.x, y + 0.2, lw);
+      const hours = [];
+      for (let h = parseInt(o.start, 10); h <= parseInt(o.end, 10); h++) hours.push(h);
+      const sy = y + 0.33, rowH = (box.y + box.h - sy) / hours.length;
+      hours.forEach((h, i) => {
+        const yy = sy + (i + 1) * rowH;
+        const lab = o.h24 ? `${String(h).padStart(2, '0')}:00` : `${((h + 11) % 12) + 1} ${h < 12 ? 'AM' : 'PM'}`;
+        p.text(lab, box.x + 0.03, yy - rowH / 2 + 0.04, { size: 8, color: s.text });
+        p.line(box.x, yy, box.x + lw, yy, { color: s.line, w: s.lineW });
+        p.line(box.x + 0.5, yy - rowH + rowH * 0.5, box.x + lw, yy - rowH + rowH * 0.5, { color: s.line, w: 0.35, dash: [0.03, 0.04] });
+      });
+      p.line(box.x + 0.45, sy, box.x + 0.45, box.y + box.h, { color: s.line, w: s.lineW });
+      // Cột phải
+      const right = { x: rx, y: top, w: rw, h: box.y + box.h - top - 0.95 };
+      sections(p, right, ctx, top, [
+        { title: 'Top priorities', lines: 3, numbered: true },
+        { title: 'To do', lines: 8, checkbox: true },
+        { title: 'Notes', lines: 5 },
+      ]);
+      // Uống nước
+      const wy = box.y + box.h - 0.55;
+      sectionTitle(p, ctx, 'Water', rx, wy, rw);
+      const gw = rw / 8;
+      for (let i = 0; i < 8; i++) p.rect(rx + i * gw + gw * 0.2, wy + 0.17, gw * 0.6, 0.3, { color: s.dark, w: 0.5, radius: 0.03 });
+    },
+  });
+
+  T.push({
+    id: 'weekly', name: 'Kế hoạch tuần (Weekly planner)', group: 'Planner',
+    options: [
+      { key: 'monday', label: 'Tuần bắt đầu thứ Hai', type: 'checkbox', default: true },
+    ],
+    draw(p, box, o, ctx) {
+      const s = ctx.style;
+      let y = box.y + 0.28;
+      p.text('Weekly Planner', box.x, y, { size: 15, bold: true, color: s.text });
+      labeledLine(p, ctx, 'Week of:', box.x + box.w * 0.5, y, box.w * 0.5);
+      y += 0.2;
+      const days = o.monday
+        ? ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday', 'Notes']
+        : ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Notes'];
+      const gap = 0.12, cw = (box.w - gap) / 2, ch = (box.y + box.h - y - gap * 3) / 4;
+      days.forEach((d, i) => {
+        const cx = box.x + (i % 2) * (cw + gap), cy = y + Math.floor(i / 2) * (ch + gap);
+        p.rect(cx, cy, cw, ch, { color: s.dark, w: 0.6, radius: 0.05 });
+        p.text(d, cx + 0.1, cy + 0.22, { size: 9.5, bold: true, color: s.text });
+        hLines(p, ctx, cx + 0.1, cy + 0.3, cw - 0.2, cy + ch - 0.08, 0.26);
+      });
+    },
+  });
+
+  T.push({
+    id: 'habit', name: 'Theo dõi thói quen (Habit tracker)', group: 'Planner',
+    options: [
+      { key: 'title', label: 'Tiêu đề', type: 'text', default: 'Habit Tracker' },
+      { key: 'rows', label: 'Số thói quen', type: 'number', default: 15, min: 5, max: 30, step: 1 },
+    ],
+    draw(p, box, o, ctx) {
+      const s = ctx.style;
+      let y = box.y + 0.3;
+      p.text(o.title, box.x, y, { size: 15, bold: true, color: s.text });
+      labeledLine(p, ctx, 'Month:', box.x + box.w * 0.55, y, box.w * 0.45);
+      y += 0.25;
+      const rows = parseInt(o.rows, 10);
+      const nameW = Math.max(1.2, box.w * 0.28);
+      const dayW = (box.w - nameW) / 31;
+      const headH = 0.25;
+      const rowH = Math.min(0.45, (box.y + box.h - y - headH) / rows);
+      p.rect(box.x, y, box.w, headH, { fill: s.fill, stroke: false });
+      p.text('Habit', box.x + 0.08, y + 0.17, { size: 8.5, bold: true, color: s.text });
+      for (let d = 1; d <= 31; d++)
+        p.text(String(d), box.x + nameW + (d - 0.5) * dayW, y + 0.165, { size: Math.min(7, dayW * 72 * 0.55), align: 'center', color: s.text });
+      const bottom = y + headH + rows * rowH;
+      for (let r = 0; r <= rows; r++) {
+        const yy = y + headH + r * rowH;
+        p.line(box.x, yy, box.x + box.w, yy, { color: s.line, w: s.lineW });
+      }
+      p.line(box.x, y, box.x + box.w, y, { color: s.dark, w: 0.8 });
+      p.line(box.x, y, box.x, bottom, { color: s.line, w: s.lineW });
+      for (let d = 0; d <= 31; d++) {
+        const xx = box.x + nameW + d * dayW;
+        p.line(xx, y, xx, bottom, { color: s.line, w: d === 0 ? 0.8 : s.lineW * 0.8 });
+      }
+    },
+  });
+
+  T.push({
+    id: 'logbook', name: 'Sổ ghi chép dạng bảng (Log book)', group: 'Log book',
+    options: [
+      { key: 'title', label: 'Tiêu đề', type: 'text', default: 'Mileage Log' },
+      { key: 'columns', label: 'Các cột (cách nhau dấu phẩy, "*2" = rộng gấp đôi)', type: 'text', default: 'Date, Start, End, Miles, Purpose*2.5' },
+      { key: 'rowH', label: 'Chiều cao hàng (inch)', type: 'number', default: 0.32, min: 0.2, max: 1, step: 0.01 },
+      { key: 'presets', label: 'Mẫu cột có sẵn', type: 'preset', target: 'columns', choices: [
+        ['Date, Start, End, Miles, Purpose*2.5', 'Mileage log (quãng đường)'],
+        ['Date, Time In, Time Out, Name*2, Signature*1.5', 'Visitor log (khách)'],
+        ['Date, Description*3, Income, Expense, Balance', 'Budget log (thu chi)'],
+        ['Date, Time, Location*2, Depth, Duration, Notes*2', 'Dive log (lặn)'],
+        ['Date, Medication*2, Dose, Time, Notes*2', 'Medication log (thuốc)'],
+        ['Date, Exercise*2, Sets, Reps, Weight, Notes*1.5', 'Workout log (tập luyện)'],
+        ['Date, Book Title*2.5, Author*1.5, Pages, Rating', 'Reading log (đọc sách)'],
+      ] },
+    ],
+    draw(p, box, o, ctx) {
+      let y = header(p, box, ctx, o.title, { titleSize: 15 });
+      const cols = parseColumns(o.columns);
+      if (!cols.length) return;
+      table(p, box, ctx, y, cols, Math.max(0.2, parseFloat(o.rowH) || 0.32));
+    },
+  });
+
+  T.push({
+    id: 'password', name: 'Sổ mật khẩu (Password log)', group: 'Log book',
+    options: [
+      { key: 'per', label: 'Số mục / trang', type: 'number', default: 4, min: 2, max: 6, step: 1 },
+      { key: 'az', label: 'Ô chữ cái A–Z đầu trang', type: 'checkbox', default: true },
+    ],
+    draw(p, box, o, ctx) {
+      const s = ctx.style;
+      let y = box.y;
+      if (o.az) {
+        p.rect(box.x + box.w - 0.5, y, 0.5, 0.42, { color: s.dark, w: 0.8, radius: 0.05 });
+        y += 0.55;
+      }
+      const n = parseInt(o.per, 10), gap = 0.15;
+      const eh = (box.y + box.h - y - gap * (n - 1)) / n;
+      const fields = ['Website:', 'Username:', 'Email:', 'Password:', 'Notes:'];
+      for (let i = 0; i < n; i++) {
+        const ey = y + i * (eh + gap);
+        p.rect(box.x, ey, box.w, eh, { color: s.dark, w: 0.6, radius: 0.06 });
+        const fh = (eh - 0.1) / fields.length;
+        fields.forEach((f, k) => {
+          labeledLine(p, ctx, f, box.x + 0.12, ey + 0.05 + (k + 1) * fh - fh * 0.25, box.w - 0.24, Math.min(10, fh * 72 * 0.45));
+        });
+      }
+    },
+  });
+
+  T.push({
+    id: 'recipe', name: 'Sổ công thức nấu ăn (Recipe book)', group: 'Nhật ký',
+    options: [],
+    draw(p, box, o, ctx) {
+      const s = ctx.style;
+      let y = box.y + 0.3;
+      labeledLine(p, ctx, 'Recipe:', box.x, y, box.w, 12);
+      y += 0.38;
+      const q = box.w / 4;
+      ['Serves:', 'Prep:', 'Cook:', 'Temp:'].forEach((f, i) => labeledLine(p, ctx, f, box.x + i * q, y, q - 0.12, 9));
+      y += 0.3;
+      p.text('Rating:', box.x, y, { size: 9, bold: true, color: s.text });
+      for (let i = 0; i < 5; i++) star(p, box.x + 0.65 + i * 0.22, y - 0.05, 0.08, s.dark);
+      y += 0.05;
+      sections(p, box, ctx, y, [
+        { title: 'Ingredients', lines: 8, checkbox: true },
+        { title: 'Directions', lines: 10, numbered: true },
+        { title: 'Notes', lines: 3 },
+      ]);
+    },
+  });
+
+  function star(p, cx, cy, r, color) {
+    const pts = [];
+    for (let i = 0; i < 10; i++) {
+      const a = -Math.PI / 2 + (i * Math.PI) / 5;
+      const rr = i % 2 ? r * 0.45 : r;
+      pts.push([cx + rr * Math.cos(a), cy + rr * Math.sin(a)]);
+    }
+    for (let i = 0; i < 10; i++) {
+      const a = pts[i], b = pts[(i + 1) % 10];
+      p.line(a[0], a[1], b[0], b[1], { color, w: 0.5 });
+    }
+  }
+
+  T.push({
+    id: 'todo', name: 'Danh sách việc cần làm (To-do list)', group: 'Planner',
+    options: [
+      { key: 'title', label: 'Tiêu đề', type: 'text', default: 'To Do List' },
+      { key: 'spacing', label: 'Khoảng cách dòng (inch)', type: 'number', default: 0.36, min: 0.25, max: 0.6, step: 0.01 },
+    ],
+    draw(p, box, o, ctx) {
+      let y = header(p, box, ctx, o.title, { date: true, titleSize: 16 });
+      const sp = parseFloat(o.spacing);
+      for (let yy = y + sp; yy <= box.y + box.h + 1e-6; yy += sp) {
+        checkbox(p, ctx, box.x, yy - 0.06);
+        p.line(box.x + 0.25, yy, box.x + box.w, yy, { color: ctx.style.line, w: ctx.style.lineW });
+      }
+    },
+  });
+
+  T.push({
+    id: 'cornell', name: 'Ghi chép Cornell (Cornell notes)', group: 'Cơ bản',
+    options: [
+      { key: 'spacing', label: 'Khoảng cách dòng (inch)', type: 'number', default: 0.28, min: 0.22, max: 0.4, step: 0.01 },
+    ],
+    draw(p, box, o, ctx) {
+      const s = ctx.style;
+      let y = box.y + 0.25;
+      labeledLine(p, ctx, 'Topic:', box.x, y, box.w * 0.6 - 0.15);
+      labeledLine(p, ctx, 'Date:', box.x + box.w * 0.6, y, box.w * 0.4);
+      y += 0.15;
+      const sumH = Math.min(1.8, box.h * 0.2);
+      const sumY = box.y + box.h - sumH;
+      const cueW = box.w * 0.3;
+      p.line(box.x, y, box.x + box.w, y, { color: s.dark, w: 1 });
+      p.line(box.x + cueW, y, box.x + cueW, sumY, { color: s.dark, w: 1 });
+      p.line(box.x, sumY, box.x + box.w, sumY, { color: s.dark, w: 1 });
+      p.text('Cues / Questions', box.x + 0.05, y + 0.2, { size: 8, bold: true, color: s.text });
+      p.text('Notes', box.x + cueW + 0.08, y + 0.2, { size: 8, bold: true, color: s.text });
+      hLines(p, ctx, box.x + cueW + 0.08, y + 0.1, box.w - cueW - 0.08, sumY - 0.05, parseFloat(o.spacing));
+      p.text('Summary', box.x + 0.05, sumY + 0.2, { size: 8, bold: true, color: s.text });
+      hLines(p, ctx, box.x, sumY + 0.1, box.w, box.y + box.h, parseFloat(o.spacing));
+    },
+  });
+
+  // Trang "Sách này thuộc về" (front matter).
+  const OWNER = {
+    id: 'owner', name: 'This book belongs to',
+    draw(p, box, o, ctx) {
+      const s = ctx.style;
+      const cy = box.y + box.h * 0.38;
+      p.rect(box.x + box.w * 0.08, cy - 0.9, box.w * 0.84, 2.2, { color: s.dark, w: 1, radius: 0.15 });
+      p.text(o.bookTitle || 'This Book Belongs To', box.x + box.w / 2, cy - 0.35, { size: 18, bold: true, align: 'center', color: s.text });
+      const lw = box.w * 0.6;
+      ['Name', 'Phone', 'Email'].forEach((f, i) => {
+        labeledLine(p, ctx, `${f}:`, box.x + (box.w - lw) / 2, cy + 0.2 + i * 0.35, lw);
+      });
+    },
+  };
+
+  global.Templates = { list: T, byId: (id) => T.find((t) => t.id === id), OWNER, parseColumns };
+})(typeof window !== 'undefined' ? window : globalThis);
