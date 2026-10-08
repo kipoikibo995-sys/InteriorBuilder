@@ -90,7 +90,7 @@ label.check { display: flex; align-items: flex-start; gap: 8px; font-weight: 400
 label.check input { margin-top: 3px; }
 label.small { font-size: 12.5px; margin: 0; }
 
-input[type=text], input[type=number], select {
+input[type=text], input[type=number], select, textarea {
   display: block; width: 100%; margin-top: 4px;
   padding: 7px 9px; border: 1px solid var(--line); border-radius: 7px;
   background: var(--bg); color: var(--ink); font: inherit;
@@ -112,7 +112,12 @@ button { font: inherit; cursor: pointer; }
   background: var(--accent); color: var(--accent-ink); font-weight: 700;
 }
 .primary:disabled { opacity: .5; cursor: progress; }
-.link { border: 0; background: none; color: var(--accent); padding: 0; margin: -4px 0 8px; }
+textarea { resize: vertical; font-size: 12px; line-height: 1.4; }
+.secondary {
+  margin-top: 6px; border: 1px solid var(--line); border-radius: 7px; padding: 6px 12px;
+  background: var(--bg); color: var(--ink); font-weight: 600; font-size: 12.5px;
+}
+.link { display: block; border: 0; background: none; color: var(--accent); padding: 0; margin: 4px 0 0; font-size: 12.5px; }
 .preset { margin-top: 4px; }
 
 .preview { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
@@ -131,6 +136,7 @@ button { font: inherit; cursor: pointer; }
 .messages { list-style: none; margin: 0; padding: 8px 16px 0; display: flex; flex-wrap: wrap; gap: 6px; }
 .messages li { font-size: 12.5px; padding: 3px 9px; border-radius: 999px; border: 1px solid currentColor; }
 .messages .ok { color: var(--ok); }
+.messages .info { color: var(--ink); }
 .messages .warn { color: var(--warn); }
 .messages .error { color: var(--err); }
 

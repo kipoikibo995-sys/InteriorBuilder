@@ -38,8 +38,10 @@
 
   function optsFor(id) {
     const tpl = Templates.byId(id);
-    state.tplOpts[id] = { ...defaultsFor(tpl), ...(state.tplOpts[id] || {}) };
-    return state.tplOpts[id];
+    // Fill in missing defaults on the same object: the option inputs keep a reference to it.
+    const opts = state.tplOpts[id] || (state.tplOpts[id] = {});
+    Object.entries(defaultsFor(tpl)).forEach(([k, v]) => { if (!(k in opts)) opts[k] = v; });
+    return opts;
   }
 
   function buildTemplateOptions() {
@@ -55,9 +57,13 @@
         input = document.createElement('select');
         if (opt.type === 'preset') input.add(new Option('— Pick to fill in —', ''));
         opt.choices.forEach(([v, text]) => input.add(new Option(text, v)));
+      } else if (opt.type === 'textarea') {
+        input = document.createElement('textarea');
+        input.rows = 8;
+        input.spellcheck = false;
       } else {
         input = document.createElement('input');
-        input.type = opt.type;
+        input.type = opt.type === 'seed' ? 'text' : opt.type;
         if (opt.min !== undefined) input.min = opt.min;
         if (opt.max !== undefined) input.max = opt.max;
         if (opt.step !== undefined) input.step = opt.step;
@@ -69,6 +75,28 @@
       } else {
         if (opt.type !== 'preset') input.value = values[opt.key];
         label.append(opt.label, input);
+      }
+      if (opt.type === 'seed') {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'secondary';
+        btn.textContent = 'New puzzle set';
+        btn.addEventListener('click', () => {
+          input.value = Math.random().toString(36).slice(2, 8);
+          input.dispatchEvent(new Event('input'));
+        });
+        label.append(btn);
+      }
+      if (opt.type === 'textarea') {
+        const reset = document.createElement('button');
+        reset.type = 'button';
+        reset.className = 'link';
+        reset.textContent = 'Restore built-in word lists';
+        reset.addEventListener('click', () => {
+          input.value = opt.default;
+          input.dispatchEvent(new Event('input'));
+        });
+        label.append(reset);
       }
       input.addEventListener('input', () => {
         if (opt.type === 'preset') {
@@ -225,6 +253,26 @@
 
   function renderMessages(cfg) {
     const list = KDP.validate(cfg);
+    const pl = Book.plan(cfg);
+    if (pl.tpl.puzzle) {
+      if (pl.count < 1) list.unshift({ level: 'error', msg: 'Not enough pages for any puzzles.' });
+      else {
+        const spare = cfg.pages - pl.front - pl.puzzlePages - pl.solutionPages;
+        list.unshift({
+          level: 'info',
+          msg: `${pl.count} puzzles on ${pl.puzzlePages} pages` +
+            (pl.solutionPages ? ` + ${pl.solutionPages} answer-key pages` : '') +
+            (spare ? ` + ${spare} blank page${spare > 1 ? 's' : ''} at the end` : ''),
+        });
+      }
+      if (/wordsearch|mixed/.test(cfg.template) && !Puzzles.parseWordLists(cfg.tplOpts.words).length) {
+        list.push({ level: 'error', msg: 'Add at least one word list.' });
+      }
+    }
+    if (list.some((m) => m.level === 'error')) {
+      const i = list.findIndex((m) => m.level === 'ok');
+      if (i >= 0) list.splice(i, 1);
+    }
     if (cfg.font.custom === false && /[^\x00-\xFF]/.test(JSON.stringify([cfg.tplOpts, cfg.bookTitle, cfg.cover]))) {
       list.push({ level: 'warn', msg: 'Non-Latin characters detected: upload a .ttf font so they print correctly.' });
     }
@@ -246,6 +294,7 @@
       const cfg = config();
       state.page = Math.min(Math.max(1, state.page), cfg.pages);
       $('bookTitleWrap').hidden = !$('ownerPage').checked;
+      $('rectoOnly').parentElement.hidden = !!Templates.byId(cfg.template).puzzle;
       renderMessages(cfg);
       renderCoverDims(cfg);
       if (state.tab === 'cover') renderCoverPreview(withCoverImage(cfg));

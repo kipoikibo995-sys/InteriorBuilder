@@ -506,6 +506,200 @@
     },
   });
 
+  // ---------- Puzzles ----------
+  // A puzzle template has a `puzzle` block instead of `draw`. The book planner (book.js) gives each
+  // puzzle page its own items and adds answer-key pages at the end of the book.
+
+  const PZ = global.Puzzles;
+
+  // Text vertically centered on y.
+  function ctext(p, str, x, y, o) {
+    p.text(str, x, y + ((o.size || 10) * 0.35) / 72, o);
+  }
+
+  // Splits a rect into a cols x rows grid of cells.
+  function cells(rect, cols, rows, gap = 0.25) {
+    const w = (rect.w - gap * (cols - 1)) / cols, h = (rect.h - gap * (rows - 1)) / rows;
+    const out = [];
+    for (let r = 0; r < rows; r++)
+      for (let c = 0; c < cols; c++) out.push({ x: rect.x + c * (w + gap), y: rect.y + r * (h + gap), w, h });
+    return out;
+  }
+
+  const LAYOUTS = { 1: [1, 1], 2: [1, 2], 4: [2, 2], 6: [2, 3], 9: [3, 3] };
+
+  function layoutFor(n, rect) {
+    const [a, b] = LAYOUTS[n] || [1, n];
+    // Landscape pages get more columns than rows.
+    return rect.w > rect.h ? cells(rect, b, a) : cells(rect, a, b);
+  }
+
+  const SUDOKU = {
+    make(o, index, total) {
+      let level = o.level;
+      if (level === 'progressive') {
+        const steps = ['easy', 'medium', 'hard', 'expert'];
+        level = steps[Math.min(3, Math.floor((index / Math.max(1, total)) * 4))];
+      }
+      return { kind: 'sudoku', ...PZ.sudoku(`${o.seed}|sudoku|${index}`, level) };
+    },
+    draw(p, rect, item, num, ctx, solution) {
+      const s = ctx.style;
+      const labelH = solution ? 0.22 : 0.32;
+      const side = Math.min(rect.w, rect.h - labelH);
+      const x0 = rect.x + (rect.w - side) / 2;
+      const y0 = rect.y + labelH + (rect.h - labelH - side) / 2;
+      const label = `${solution ? '#' : 'Sudoku #'}${num}`;
+      const levelName = PZ.SUDOKU_LEVELS[item.level].label;
+      const ls = solution ? 8 : 10;
+      p.text(label, x0, y0 - 0.09, { size: ls, bold: true, color: s.text });
+      p.text(levelName, x0 + side, y0 - 0.09, { size: ls - 1, color: s.text, align: 'right' });
+      const cs = side / 9;
+      for (let i = 0; i <= 9; i++) {
+        const thick = i % 3 === 0;
+        const o = { color: thick ? s.text : s.line, w: thick ? (solution ? 1.2 : 1.8) : 0.5 };
+        p.line(x0 + i * cs, y0, x0 + i * cs, y0 + side, o);
+        p.line(x0, y0 + i * cs, x0 + side, y0 + i * cs, o);
+      }
+      const size = cs * 72 * 0.58;
+      for (let i = 0; i < 81; i++) {
+        const given = item.puzzle[i];
+        const v = given || (solution ? item.solution[i] : 0);
+        if (!v) continue;
+        const cx = x0 + (i % 9 + 0.5) * cs, cy = y0 + (Math.floor(i / 9) + 0.5) * cs;
+        ctext(p, String(v), cx, cy, { size, align: 'center', bold: !!given, color: given ? s.text : s.line });
+      }
+    },
+  };
+
+  const WORDSEARCH = {
+    make(o, index) {
+      const lists = PZ.parseWordLists(o.words);
+      const list = lists.length ? lists[index % lists.length] : { theme: 'Word Search', words: ['EMPTY'] };
+      return {
+        kind: 'wordsearch',
+        ...PZ.wordSearch(`${o.seed}|ws|${index}`, {
+          size: parseInt(o.size, 10), level: o.wsLevel, words: list.words,
+          count: parseInt(o.count, 10), theme: list.theme,
+        }),
+      };
+    },
+    draw(p, rect, item, num, ctx, solution) {
+      const s = ctx.style;
+      let y = rect.y;
+      if (solution) {
+        p.text(`#${num} ${item.theme}`, rect.x + rect.w / 2, y + 0.14, { size: 8, bold: true, align: 'center', color: s.text });
+        y += 0.24;
+      } else {
+        p.text(item.theme, rect.x + rect.w / 2, y + 0.3, { size: 18, bold: true, align: 'center', color: s.text });
+        p.text(`Word Search #${num}`, rect.x + rect.w / 2, y + 0.52, { size: 9, align: 'center', color: s.text });
+        y += 0.72;
+      }
+      const words = item.placed.map((w) => w.word.toUpperCase());
+      const cols = rect.w > 4.5 ? 4 : 3;
+      const listRows = Math.ceil(words.length / cols);
+      const listH = solution ? 0 : listRows * 0.24 + 0.25;
+      const side = Math.min(rect.w, rect.y + rect.h - y - listH);
+      const x0 = rect.x + (rect.w - side) / 2;
+      const cs = side / item.size;
+      if (solution) {
+        // Each found word gets a rounded outline: a thick dark stroke with a slightly thinner light stroke on top.
+        const ends = item.placed.map((w) => [
+          x0 + (w.c + 0.5) * cs, y + (w.r + 0.5) * cs,
+          x0 + (w.c + w.dc * (w.len - 1) + 0.5) * cs, y + (w.r + w.dr * (w.len - 1) + 0.5) * cs,
+        ]);
+        const wOuter = cs * 72 * 0.8;
+        ends.forEach(([ax, ay, bx, by]) => p.line(ax, ay, bx, by, { color: s.dark, w: wOuter }));
+        ends.forEach(([ax, ay, bx, by]) => p.line(ax, ay, bx, by, { color: s.fill, w: wOuter - 1.4 }));
+      }
+      p.rect(x0, y, side, side, { color: s.dark, w: solution ? 0.6 : 1, radius: 0.04 });
+      const size = cs * 72 * (solution ? 0.62 : 0.58);
+      for (let r = 0; r < item.size; r++)
+        for (let c = 0; c < item.size; c++)
+          ctext(p, item.grid[r][c], x0 + (c + 0.5) * cs, y + (r + 0.5) * cs, { size, align: 'center', color: s.text, bold: !solution });
+      if (solution) return;
+      const ly = y + side + 0.35, colW = rect.w / cols;
+      words.forEach((w, i) => {
+        const cx = rect.x + (i % cols) * colW, cy = ly + Math.floor(i / cols) * 0.24;
+        p.rect(cx + 0.05, cy - 0.1, 0.1, 0.1, { color: s.dark, w: 0.5, radius: 0.015 });
+        p.text(w, cx + 0.22, cy, { size: Math.min(10, colW * 72 / Math.max(8, w.length) * 1.3), color: s.text });
+      });
+    },
+  };
+
+  const KINDS = { sudoku: SUDOKU, wordsearch: WORDSEARCH };
+
+  const SEED = { key: 'seed', label: 'Puzzle seed (change for a new set)', type: 'seed', default: 'book-1' };
+  const SOLUTIONS = { key: 'solutions', label: 'Answer key at the back', type: 'checkbox', default: true };
+  const SUDOKU_LEVEL = { key: 'level', label: 'Difficulty', type: 'select', default: 'medium', choices: [
+    ['easy', 'Easy (~40 clues)'], ['medium', 'Medium (~32 clues)'], ['hard', 'Hard (~27 clues)'],
+    ['expert', 'Expert (~24 clues)'], ['progressive', 'Progressive: easy → expert'] ] };
+  const WS_OPTS = [
+    { key: 'size', label: 'Grid size', type: 'select', default: '15', choices: [
+      ['10', '10 x 10 (kids)'], ['12', '12 x 12'], ['15', '15 x 15'], ['17', '17 x 17'], ['20', '20 x 20'] ] },
+    { key: 'count', label: 'Words per puzzle', type: 'number', default: 16, min: 5, max: 30, step: 1 },
+    { key: 'wsLevel', label: 'Word directions', type: 'select', default: 'medium',
+      choices: Object.entries(PZ.WS_LEVELS) },
+    { key: 'words', label: 'Word lists — one puzzle theme per line: "Theme: word, word, ..."', type: 'textarea', default: PZ.WORD_BANK },
+  ];
+
+  T.push({
+    id: 'sudoku', name: 'Sudoku', group: 'Puzzles',
+    options: [
+      SUDOKU_LEVEL,
+      { key: 'perPage', label: 'Puzzles per page', type: 'select', default: '2', choices: [
+        ['1', '1 (large print)'], ['2', '2'], ['4', '4'], ['6', '6'] ] },
+      SOLUTIONS,
+      { key: 'solPerPage', label: 'Solutions per page', type: 'select', default: '6', choices: [['4', '4'], ['6', '6'], ['9', '9']] },
+      SEED,
+    ],
+    puzzle: {
+      perPage: (o) => parseInt(o.perPage, 10),
+      solPerPage: (o) => parseInt(o.solPerPage, 10),
+      kind: () => SUDOKU,
+    },
+  });
+
+  T.push({
+    id: 'wordsearch', name: 'Word search', group: 'Puzzles',
+    options: [...WS_OPTS, SOLUTIONS, SEED],
+    puzzle: {
+      perPage: () => 1,
+      solPerPage: () => 4,
+      kind: () => WORDSEARCH,
+    },
+  });
+
+  T.push({
+    id: 'mixed', name: 'Mixed puzzles (Sudoku + Word search)', group: 'Puzzles',
+    options: [
+      { key: 'pattern', label: 'Page order', type: 'select', default: 'alternate', choices: [
+        ['alternate', 'Alternate: word search, sudoku, ...'], ['halves', 'Word searches first, then sudoku'] ] },
+      SUDOKU_LEVEL,
+      ...WS_OPTS, SOLUTIONS, SEED,
+    ],
+    puzzle: {
+      perPage: () => 1,
+      solPerPage: () => 4,
+      kind: (o, index, total) => (o.pattern === 'halves'
+        ? (index < Math.ceil(total / 2) ? WORDSEARCH : SUDOKU)
+        : (index % 2 ? SUDOKU : WORDSEARCH)),
+    },
+  });
+
+  // Draws one puzzle page or one answer-key page. items: [{ num, data }]
+  function drawPuzzlePage(p, box, items, ctx, solution) {
+    const s = ctx.style;
+    let rect = box;
+    if (solution) {
+      p.text(ctx.firstSolutionPage ? 'Solutions' : 'Solutions (continued)', box.x + box.w / 2, box.y + 0.25,
+        { size: ctx.firstSolutionPage ? 18 : 12, bold: true, align: 'center', color: s.text });
+      rect = { x: box.x, y: box.y + 0.45, w: box.w, h: box.h - 0.45 };
+    }
+    const slots = layoutFor(ctx.slots, rect);
+    items.forEach((it, i) => KINDS[it.data.kind].draw(p, slots[i], it.data, it.num, ctx, solution));
+  }
+
   // "This book belongs to" page (front matter).
   const OWNER = {
     id: 'owner', name: 'This book belongs to',
@@ -521,5 +715,5 @@
     },
   };
 
-  global.Templates = { list: T, byId: (id) => T.find((t) => t.id === id), OWNER, parseColumns };
+  global.Templates = { list: T, byId: (id) => T.find((t) => t.id === id), OWNER, parseColumns, drawPuzzlePage };
 })(typeof window !== 'undefined' ? window : globalThis);

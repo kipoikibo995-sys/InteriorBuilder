@@ -5,12 +5,60 @@
   const KDP = global.KDP;
   const Templates = global.Templates;
 
-  // Kind of page n (1-based).
-  function pageKind(cfg, n) {
-    if (cfg.ownerPage && n === 1) return 'owner';
-    if (cfg.ownerPage && n === 2) return 'blank';
-    if (cfg.rectoOnly && !KDP.isRecto(n)) return 'blank';
-    return 'template';
+  // Splits the book into front matter, puzzle pages and answer-key pages.
+  // Puzzle templates fill as many pages as fit; any leftover pages go blank at the very end.
+  function plan(cfg) {
+    const tpl = Templates.byId(cfg.template) || Templates.list[0];
+    const front = cfg.ownerPage ? 2 : 0;
+    if (!tpl.puzzle) return { tpl, front };
+    const o = cfg.tplOpts;
+    const per = tpl.puzzle.perPage(o), solPer = tpl.puzzle.solPerPage(o);
+    const solPages = (p) => (o.solutions ? Math.ceil((p * per) / solPer) : 0);
+    let puzzlePages = Math.max(0, cfg.pages - front);
+    while (puzzlePages > 0 && front + puzzlePages + solPages(puzzlePages) > cfg.pages) puzzlePages--;
+    return {
+      tpl, front, per, solPer, puzzlePages,
+      solutionPages: solPages(puzzlePages),
+      count: puzzlePages * per,
+    };
+  }
+
+  // Puzzles are generated on demand and cached, so the preview only builds what it shows.
+  let cache = { key: '', items: new Map() };
+
+  function puzzleItem(cfg, pl, index) {
+    const key = JSON.stringify([cfg.template, cfg.tplOpts, pl.count]);
+    if (cache.key !== key) cache = { key, items: new Map() };
+    if (!cache.items.has(index)) {
+      const kind = pl.tpl.puzzle.kind(cfg.tplOpts, index, pl.count);
+      cache.items.set(index, kind.make(cfg.tplOpts, index, pl.count));
+    }
+    return { num: index + 1, data: cache.items.get(index) };
+  }
+
+  function range(from, to) {
+    const out = [];
+    for (let i = from; i < to; i++) out.push(i);
+    return out;
+  }
+
+  // Kind of page n (1-based), plus the puzzle items it shows.
+  function pageInfo(cfg, n, pl = plan(cfg)) {
+    if (cfg.ownerPage && n === 1) return { kind: 'owner' };
+    if (cfg.ownerPage && n === 2) return { kind: 'blank' };
+    if (!pl.tpl.puzzle) {
+      if (cfg.rectoOnly && !KDP.isRecto(n)) return { kind: 'blank' };
+      return { kind: 'template' };
+    }
+    const i = n - pl.front - 1;
+    if (i < pl.puzzlePages) {
+      return { kind: 'puzzle', items: range(i * pl.per, (i + 1) * pl.per), slots: pl.per };
+    }
+    const si = i - pl.puzzlePages;
+    if (si < pl.solutionPages) {
+      return { kind: 'solution', items: range(si * pl.solPer, Math.min((si + 1) * pl.solPer, pl.count)), slots: pl.solPer, first: si === 0 };
+    }
+    return { kind: 'blank' };
   }
 
   function drawGuides(p, cfg, box) {
@@ -44,15 +92,19 @@
     const box = KDP.contentBox(cfg, n);
     if (options.guides) drawGuides(p, cfg, box);
     const ctx = { style: cfg.style, recto: box.recto, page: n };
-    const kind = pageKind(cfg, n);
-    if (kind === 'owner') {
+    const pl = options.plan || plan(cfg);
+    const info = pageInfo(cfg, n, pl);
+    if (info.kind === 'owner') {
       Templates.OWNER.draw(p, box, { bookTitle: cfg.bookTitle }, ctx);
-    } else if (kind === 'template') {
-      const tpl = Templates.byId(cfg.template) || Templates.list[0];
-      tpl.draw(p, box, cfg.tplOpts, ctx);
+    } else if (info.kind === 'template') {
+      pl.tpl.draw(p, box, cfg.tplOpts, ctx);
+      drawPageNumber(p, cfg, box, n);
+    } else if (info.kind === 'puzzle' || info.kind === 'solution') {
+      const items = info.items.map((i) => puzzleItem(cfg, pl, i));
+      Templates.drawPuzzlePage(p, box, items, { ...ctx, slots: info.slots, firstSolutionPage: info.first }, info.kind === 'solution');
       drawPageNumber(p, cfg, box, n);
     }
-    return kind;
+    return info.kind;
   }
 
   function newDoc(w, h) {
@@ -75,9 +127,10 @@
     const doc = newDoc(size.w, size.h);
     registerFont(doc, cfg.font);
     const painter = new global.PdfPainter(doc, cfg.font);
+    const pl = plan(cfg);
     for (let n = 1; n <= cfg.pages; n++) {
       if (n > 1) doc.addPage([size.w, size.h], size.w > size.h ? 'landscape' : 'portrait');
-      renderPage(painter, cfg, n);
+      renderPage(painter, cfg, n, { plan: pl });
       if (n % 8 === 0) {
         if (onProgress) onProgress(n / cfg.pages);
         await tick();
@@ -184,5 +237,5 @@
     return doc;
   }
 
-  global.Book = { pageKind, renderPage, buildInteriorPdf, coverLayout, renderCover, buildCoverPdf };
+  global.Book = { plan, pageInfo, renderPage, buildInteriorPdf, coverLayout, renderCover, buildCoverPdf };
 })(typeof window !== 'undefined' ? window : globalThis);
