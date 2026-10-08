@@ -1,5 +1,5 @@
-// Lớp vẽ chung: cùng một mã mẫu trang vẽ được lên canvas (xem trước) và lên PDF (jsPDF).
-// Toạ độ: inch, gốc ở góc trên-trái trang. Độ dày nét và cỡ chữ: point (1/72 inch).
+// Shared drawing layer: the same template code draws to a canvas (preview) and to a PDF (jsPDF).
+// Coordinates: inches, origin at the page's top-left. Line widths and font sizes: points (1/72 inch).
 (function (global) {
   'use strict';
 
@@ -8,7 +8,7 @@
   class CanvasPainter {
     constructor(ctx, scale, fontFamily) {
       this.ctx = ctx;
-      this.s = scale; // pixel trên mỗi inch
+      this.s = scale; // pixels per inch
       this.fontFamily = fontFamily || 'Helvetica, Arial, sans-serif';
     }
 
@@ -69,7 +69,7 @@
       c.textAlign = o.align || 'left';
       c.textBaseline = 'alphabetic';
       if (o.angle) {
-        // o.angle: độ, ngược chiều kim đồng hồ (giống jsPDF).
+        // o.angle: degrees, counter-clockwise (same as jsPDF).
         c.save();
         c.translate(x * s, y * s);
         c.rotate((-o.angle * Math.PI) / 180);
@@ -100,7 +100,7 @@
   }
 
   class PdfPainter {
-    // font: { name, custom } — custom = true nếu là font TTF người dùng tải lên (chỉ có kiểu normal).
+    // font: { name, custom } — custom = true for a user-uploaded TTF (normal style only).
     constructor(doc, font) {
       this.doc = doc;
       this.font = font || { name: 'helvetica', custom: false };
@@ -173,7 +173,7 @@
       d.text(String(str), x, y, opt);
     }
 
-    // Chấm tròn = đoạn thẳng độ dài 0 với đầu nét tròn: nhẹ hơn nhiều so với circle() khi in hàng nghìn chấm.
+    // A dot is a zero-length line with a round cap: far lighter than circle() when drawing thousands of dots.
     dot(x, y, d, color) {
       const doc = this.doc;
       doc.setLineDashPattern([], 0);

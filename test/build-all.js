@@ -1,5 +1,5 @@
-// Kiểm thử nhanh: dựng PDF cho mọi mẫu trang + bìa trong Node.
-// Chạy: node test/build-all.js [thư-mục-xuất]
+// Smoke test: builds a PDF for every page template plus a cover, in Node.
+// Usage: node test/build-all.js [output-dir]
 const fs = require('fs');
 const path = require('path');
 const root = path.join(__dirname, '..');
@@ -50,18 +50,18 @@ function cfgFor(tpl, extra = {}) {
       }
     }
   }
-  // Bìa
+  // Cover
   const ccfg = cfgFor(Templates.byId('lined'), { pages: 120 });
   const cover = Book.buildCoverPdf(ccfg);
   const L = Book.coverLayout(ccfg);
   console.log(`ok   cover ${cover.internal.pageSize.getWidth().toFixed(3)}" x ${cover.internal.pageSize.getHeight().toFixed(3)}" (spine ${L.spine.toFixed(4)}")`);
   if (outDir) fs.writeFileSync(path.join(outDir, 'cover.pdf'), Buffer.from(cover.output('arraybuffer')));
 
-  // Sách dày nhất: kiểm tra dung lượng file
+  // Large book: check file size
   const big = cfgFor(Templates.byId('dotgrid'), { pages: 300 });
   const t0 = Date.now();
   const bigDoc = await Book.buildInteriorPdf(big);
-  console.log(`ok   dotgrid 300 trang: ${(bigDoc.output('arraybuffer').byteLength / 1048576).toFixed(1)} MB, ${Date.now() - t0} ms`);
+  console.log(`ok   dotgrid 300 pages: ${(bigDoc.output('arraybuffer').byteLength / 1048576).toFixed(1)} MB, ${Date.now() - t0} ms`);
 
   process.exit(failed ? 1 : 0);
 })();

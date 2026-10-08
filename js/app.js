@@ -1,4 +1,4 @@
-// Giao diện: đọc cấu hình từ form, vẽ xem trước, tải PDF.
+// UI: reads settings from the form, draws the preview, downloads PDFs.
 (function () {
   'use strict';
 
@@ -7,13 +7,13 @@
 
   const state = {
     tab: 'interior',
-    page: 1, // trang đang xem (spread chứa trang này)
-    tplOpts: {}, // tuỳ chọn theo từng mẫu: { [tplId]: {key: value} }
+    page: 1, // page being viewed (the spread containing it)
+    tplOpts: {}, // per-template options: { [tplId]: {key: value} }
     font: { name: 'helvetica', custom: false },
     coverImage: null, // { el, raw, cache: {aspect, img} }
   };
 
-  // ---------- Khởi tạo form ----------
+  // ---------- Form setup ----------
 
   KDP.TRIM_SIZES.forEach((t) => $('trim').add(new Option(t.label, t.id)));
   $('trim').value = '6x9';
@@ -53,7 +53,7 @@
       let input;
       if (opt.type === 'select' || opt.type === 'preset') {
         input = document.createElement('select');
-        if (opt.type === 'preset') input.add(new Option('— Chọn để điền nhanh —', ''));
+        if (opt.type === 'preset') input.add(new Option('— Pick to fill in —', ''));
         opt.choices.forEach(([v, text]) => input.add(new Option(text, v)));
       } else {
         input = document.createElement('input');
@@ -84,7 +84,7 @@
     });
   }
 
-  // ---------- Cấu hình ----------
+  // ---------- Settings ----------
 
   function num(id, fallback) {
     const v = parseFloat($(id).value);
@@ -124,7 +124,7 @@
     };
   }
 
-  // ---------- Xem trước ----------
+  // ---------- Preview ----------
 
   const canvas = $('canvas');
 
@@ -154,7 +154,7 @@
     return { helvetica: 'Helvetica, Arial, sans-serif', times: '"Times New Roman", Times, serif', courier: '"Courier New", Courier, monospace' }[state.font.name];
   }
 
-  // Trang trái/phải của spread chứa trang n. Trang 1 đứng một mình bên phải.
+  // Left/right pages of the spread containing page n. Page 1 stands alone on the right.
   function spreadOf(n, total) {
     if (n <= 1) return [null, 1];
     const left = n % 2 === 0 ? n : n - 1;
@@ -178,14 +178,14 @@
       ctx.restore();
     });
     const label = [l, r].filter(Boolean).join('–');
-    $('pageLabel').textContent = `Trang ${label} / ${cfg.pages}`;
+    $('pageLabel').textContent = `Page ${label} of ${cfg.pages}`;
   }
 
   function coverImageFor(aspect) {
     const ci = state.coverImage;
     if (!ci) return null;
     if (ci.cache && Math.abs(ci.cache.aspect - aspect) < 1e-4) return ci.cache.img;
-    // Cắt ảnh theo tỉ lệ mặt trước (kiểu "cover"), giữ tối đa 300 dpi.
+    // Crop the image to the front panel's aspect ratio ("cover" fit).
     const src = ci.el;
     let sw = src.naturalWidth, sh = src.naturalHeight;
     if (sw / sh > aspect) sw = sh * aspect; else sh = sw / aspect;
@@ -216,17 +216,17 @@
     const px = (v) => Math.round(v * 300);
     const frontW = L.w - L.frontX;
     $('coverDims').innerHTML = `
-      <dt>Toàn bộ bìa</dt><dd>${f(L.w)} × ${f(L.h)}</dd>
-      <dt>Độ dày gáy</dt><dd>${f(L.spine)}</dd>
-      <dt>Ảnh 300 dpi</dt><dd>${px(L.w)} × ${px(L.h)} px</dd>
-      <dt>Ảnh mặt trước</dt><dd>${px(frontW)} × ${px(L.h)} px</dd>
-      <dt>Chữ trên gáy</dt><dd>${cfg.pages > KDP.SPINE_TEXT_MIN_PAGES ? 'Được phép' : 'Không (≤ 79 trang)'}</dd>`;
+      <dt>Full cover</dt><dd>${f(L.w)} × ${f(L.h)}</dd>
+      <dt>Spine width</dt><dd>${f(L.spine)}</dd>
+      <dt>Image @ 300 dpi</dt><dd>${px(L.w)} × ${px(L.h)} px</dd>
+      <dt>Front image</dt><dd>${px(frontW)} × ${px(L.h)} px</dd>
+      <dt>Spine text</dt><dd>${cfg.pages > KDP.SPINE_TEXT_MIN_PAGES ? 'Allowed' : 'Not allowed (≤ 79 pages)'}</dd>`;
   }
 
   function renderMessages(cfg) {
     const list = KDP.validate(cfg);
     if (cfg.font.custom === false && /[^\x00-\xFF]/.test(JSON.stringify([cfg.tplOpts, cfg.bookTitle, cfg.cover]))) {
-      list.push({ level: 'warn', msg: 'Có ký tự tiếng Việt/đặc biệt: hãy tải phông .ttf để in đúng dấu.' });
+      list.push({ level: 'warn', msg: 'Non-Latin characters detected: upload a .ttf font so they print correctly.' });
     }
     $('messages').innerHTML = '';
     list.forEach((m) => {
@@ -254,7 +254,7 @@
     });
   }
 
-  // ---------- Lưu cấu hình trong trình duyệt ----------
+  // ---------- Persist settings in the browser ----------
 
   const FIELDS = ['trim', 'pages', 'paper', 'bleed', 'template', 'ownerPage', 'bookTitle', 'rectoOnly', 'pageNum',
     'mInside', 'mOutside', 'mTop', 'mBottom', 'autoGutter', 'cLine', 'cDark', 'cText', 'cFill', 'lineW',
@@ -265,7 +265,7 @@
       const data = { tplOpts: state.tplOpts };
       FIELDS.forEach((id) => { const el = $(id); data[id] = el.type === 'checkbox' ? el.checked : el.value; });
       localStorage.setItem(STORE_KEY, JSON.stringify(data));
-    } catch (e) { /* bộ nhớ trình duyệt không khả dụng */ }
+    } catch (e) { /* browser storage unavailable */ }
   }
 
   function load() {
@@ -279,10 +279,10 @@
       });
       if (!Templates.byId($('template').value)) $('template').value = 'lined';
       state.tplOpts = data.tplOpts || {};
-    } catch (e) { /* bỏ qua */ }
+    } catch (e) { /* ignore */ }
   }
 
-  // ---------- Sự kiện ----------
+  // ---------- Events ----------
 
   document.querySelectorAll('.tab').forEach((btn) => btn.addEventListener('click', () => {
     state.tab = btn.dataset.tab;
@@ -319,7 +319,7 @@
   });
   window.addEventListener('resize', update);
 
-  // Phông chữ tuỳ chỉnh
+  // Custom font
   $('font').addEventListener('change', () => {
     if ($('font').value === 'custom') {
       $('fontFile').click();
@@ -346,7 +346,7 @@
       document.fonts.add(face);
     } catch (e) {
       $('fontNote').hidden = false;
-      $('fontNote').textContent = 'Không đọc được phông này. Hãy thử file .ttf khác.';
+      $('fontNote').textContent = 'Could not read this font. Please try another .ttf file.';
       $('font').value = 'helvetica';
       state.font = { name: 'helvetica', custom: false };
       update();
@@ -354,11 +354,11 @@
     }
     state.font = { name, custom: true, base64: btoa(bin) };
     $('fontNote').hidden = false;
-    $('fontNote').textContent = `Đang dùng phông: ${file.name} (chữ đậm hiển thị như chữ thường).`;
+    $('fontNote').textContent = `Using font: ${file.name} (bold text renders as regular).`;
     update();
   });
 
-  // Ảnh bìa
+  // Cover image
   $('cvImage').addEventListener('change', () => {
     const file = $('cvImage').files[0];
     if (!file) return;
@@ -377,7 +377,7 @@
     update();
   });
 
-  // ---------- Xuất PDF ----------
+  // ---------- PDF export ----------
 
   function slug(s) {
     return String(s || 'book').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/đ/gi, 'd')
@@ -393,14 +393,14 @@
     try {
       const doc = await Book.buildInteriorPdf(cfg, (f) => {
         $('progressBar').style.width = `${Math.round(f * 100)}%`;
-        $('progressText').textContent = `Đang tạo ${Math.round(f * cfg.pages)} / ${cfg.pages} trang`;
+        $('progressText').textContent = `Building page ${Math.round(f * cfg.pages)} of ${cfg.pages}`;
       });
-      $('progressText').textContent = 'Đang lưu file…';
+      $('progressText').textContent = 'Saving file…';
       await new Promise((r) => setTimeout(r, 0));
       doc.save(`${slug(cfg.docTitle)}-interior-${cfg.trim.id}-${cfg.pages}p.pdf`);
-      $('progressText').textContent = 'Xong!';
+      $('progressText').textContent = 'Done!';
     } catch (e) {
-      $('progressText').textContent = `Lỗi: ${e.message}`;
+      $('progressText').textContent = `Error: ${e.message}`;
     } finally {
       btn.disabled = false;
       setTimeout(() => { $('progress').hidden = true; }, 2500);
@@ -413,7 +413,7 @@
     doc.save(`${slug(cfg.docTitle)}-cover-${cfg.trim.id}-${cfg.pages}p.pdf`);
   });
 
-  // ---------- Bắt đầu ----------
+  // ---------- Start ----------
   load();
   buildTemplateOptions();
   update();

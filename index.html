@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="vi">
+<html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -12,91 +12,91 @@
       <span class="logo">IB</span>
       <div>
         <h1>InteriorBuilder</h1>
-        <p>Tạo ruột sách &amp; bìa low-content chuẩn Amazon KDP</p>
+        <p>Print-ready low-content interiors &amp; covers for Amazon KDP</p>
       </div>
     </div>
     <nav class="tabs" role="tablist">
-      <button class="tab active" data-tab="interior" role="tab">Ruột sách</button>
-      <button class="tab" data-tab="cover" role="tab">Bìa sách</button>
-      <button class="tab" data-tab="guide" role="tab">Hướng dẫn</button>
+      <button class="tab active" data-tab="interior" role="tab">Interior</button>
+      <button class="tab" data-tab="cover" role="tab">Cover</button>
+      <button class="tab" data-tab="guide" role="tab">Guide</button>
     </nav>
   </header>
 
   <main class="layout">
-    <!-- ================= RUỘT SÁCH ================= -->
+    <!-- ================= INTERIOR ================= -->
     <aside class="panel" data-panel="interior">
       <section class="card">
-        <h2>1. Khổ sách &amp; số trang</h2>
-        <label>Khổ sách (trim size)
+        <h2>1. Trim size &amp; page count</h2>
+        <label>Trim size
           <select id="trim"></select>
         </label>
         <div class="row">
-          <label>Số trang
+          <label>Page count
             <input id="pages" type="number" min="24" max="828" step="2" value="120">
           </label>
-          <label>Loại giấy
+          <label>Paper type
             <select id="paper"></select>
           </label>
         </div>
-        <label class="check"><input id="bleed" type="checkbox"> Có bleed (tràn lề) — chỉ cần khi in sát mép</label>
+        <label class="check"><input id="bleed" type="checkbox"> Bleed — only needed when printing to the edge</label>
       </section>
 
       <section class="card">
-        <h2>2. Mẫu trang</h2>
-        <label>Kiểu trang
+        <h2>2. Page template</h2>
+        <label>Template
           <select id="template"></select>
         </label>
         <div id="tplOptions" class="opts"></div>
       </section>
 
       <section class="card">
-        <h2>3. Trang đầu &amp; đánh số</h2>
-        <label class="check"><input id="ownerPage" type="checkbox" checked> Trang "This book belongs to" (trang 1, trang 2 để trắng)</label>
-        <label id="bookTitleWrap">Tiêu đề trang sở hữu
+        <h2>3. Front matter &amp; numbering</h2>
+        <label class="check"><input id="ownerPage" type="checkbox" checked> "This book belongs to" page (page 1, page 2 left blank)</label>
+        <label id="bookTitleWrap">Owner page title
           <input id="bookTitle" type="text" value="This Book Belongs To">
         </label>
-        <label class="check"><input id="rectoOnly" type="checkbox"> Chỉ in mặt phải (mặt trái để trắng — hợp sổ vẽ, tô màu)</label>
-        <label>Số trang in trên trang
+        <label class="check"><input id="rectoOnly" type="checkbox"> Right-hand pages only (left pages blank — for sketchbooks, coloring)</label>
+        <label>Page numbers
           <select id="pageNum">
-            <option value="none">Không in</option>
-            <option value="center">Giữa chân trang</option>
-            <option value="outside">Góc ngoài chân trang</option>
+            <option value="none">None</option>
+            <option value="center">Bottom center</option>
+            <option value="outside">Bottom outside corner</option>
           </select>
         </label>
       </section>
 
       <section class="card">
-        <h2>4. Lề (inch)</h2>
+        <h2>4. Margins (inches)</h2>
         <div class="row">
-          <label>Lề gáy (trong)<input id="mInside" type="number" step="0.025" min="0.25"></label>
-          <label>Lề ngoài<input id="mOutside" type="number" step="0.025" min="0.25" value="0.5"></label>
+          <label>Gutter (inside)<input id="mInside" type="number" step="0.025" min="0.25"></label>
+          <label>Outside<input id="mOutside" type="number" step="0.025" min="0.25" value="0.5"></label>
         </div>
         <div class="row">
-          <label>Lề trên<input id="mTop" type="number" step="0.025" min="0.25" value="0.5"></label>
-          <label>Lề dưới<input id="mBottom" type="number" step="0.025" min="0.25" value="0.6"></label>
+          <label>Top<input id="mTop" type="number" step="0.025" min="0.25" value="0.5"></label>
+          <label>Bottom<input id="mBottom" type="number" step="0.025" min="0.25" value="0.6"></label>
         </div>
-        <label class="check"><input id="autoGutter" type="checkbox" checked> Tự tính lề gáy theo số trang (KDP + 0.125")</label>
+        <label class="check"><input id="autoGutter" type="checkbox" checked> Auto gutter from page count (KDP minimum + 0.125")</label>
       </section>
 
       <section class="card">
-        <h2>5. Kiểu dáng</h2>
+        <h2>5. Style</h2>
         <div class="row">
-          <label>Màu nét kẻ<input id="cLine" type="color" value="#9a9a9a"></label>
-          <label>Màu nét đậm<input id="cDark" type="color" value="#555555"></label>
+          <label>Line color<input id="cLine" type="color" value="#9a9a9a"></label>
+          <label>Accent line color<input id="cDark" type="color" value="#555555"></label>
         </div>
         <div class="row">
-          <label>Màu chữ<input id="cText" type="color" value="#222222"></label>
-          <label>Màu nền tiêu đề<input id="cFill" type="color" value="#ececec"></label>
+          <label>Text color<input id="cText" type="color" value="#222222"></label>
+          <label>Heading fill<input id="cFill" type="color" value="#ececec"></label>
         </div>
-        <label>Độ dày nét kẻ (pt)
+        <label>Line weight (pt)
           <input id="lineW" type="number" min="0.25" max="2" step="0.05" value="0.5">
         </label>
-        <label>Phông chữ
+        <label>Font
           <select id="font">
             <option value="helvetica">Helvetica (sans-serif)</option>
             <option value="times">Times (serif)</option>
-            <option value="courier">Courier (máy chữ)</option>
-            <option value="custom">Tải phông .ttf của tôi…</option>
+            <option value="courier">Courier (typewriter)</option>
+            <option value="custom">Upload my own .ttf…</option>
           </select>
         </label>
         <input id="fontFile" type="file" accept=".ttf" hidden>
@@ -104,66 +104,66 @@
       </section>
     </aside>
 
-    <!-- ================= BÌA ================= -->
+    <!-- ================= COVER ================= -->
     <aside class="panel" data-panel="cover" hidden>
       <section class="card">
-        <h2>Kích thước bìa</h2>
-        <p class="hint">Dùng khổ sách, số trang và loại giấy ở tab <b>Ruột sách</b>.</p>
+        <h2>Cover dimensions</h2>
+        <p class="hint">Uses the trim size, page count and paper type from the <b>Interior</b> tab.</p>
         <dl id="coverDims" class="dims"></dl>
       </section>
       <section class="card">
-        <h2>Nội dung bìa</h2>
-        <label>Tiêu đề<input id="cvTitle" type="text" value="Daily Gratitude Journal"></label>
-        <label>Phụ đề<input id="cvSubtitle" type="text" value="5 Minutes a Day for More Happiness"></label>
-        <label>Tác giả / thương hiệu<input id="cvAuthor" type="text" value="Your Brand"></label>
-        <label>Chữ trên gáy<input id="cvSpine" type="text" value="Daily Gratitude Journal"></label>
+        <h2>Cover content</h2>
+        <label>Title<input id="cvTitle" type="text" value="Daily Gratitude Journal"></label>
+        <label>Subtitle<input id="cvSubtitle" type="text" value="5 Minutes a Day for More Happiness"></label>
+        <label>Author / brand<input id="cvAuthor" type="text" value="Your Brand"></label>
+        <label>Spine text<input id="cvSpine" type="text" value="Daily Gratitude Journal"></label>
         <div class="row">
-          <label>Màu nền<input id="cvBg" type="color" value="#2f4858"></label>
-          <label>Màu chữ<input id="cvFg" type="color" value="#ffffff"></label>
+          <label>Background<input id="cvBg" type="color" value="#2f4858"></label>
+          <label>Text color<input id="cvFg" type="color" value="#ffffff"></label>
         </div>
-        <label>Ảnh bìa trước (tuỳ chọn, phủ toàn mặt trước)
+        <label>Front cover image (optional, fills the front panel)
           <input id="cvImage" type="file" accept="image/png,image/jpeg">
         </label>
-        <button id="cvImageClear" class="link" type="button" hidden>Bỏ ảnh</button>
-        <label class="check"><input id="cvGuides" type="checkbox" checked> Hiện đường hướng dẫn (tắt trước khi xuất bản)</label>
+        <button id="cvImageClear" class="link" type="button" hidden>Remove image</button>
+        <label class="check"><input id="cvGuides" type="checkbox" checked> Show guides (turn off before publishing)</label>
       </section>
     </aside>
 
-    <!-- ================= HƯỚNG DẪN ================= -->
+    <!-- ================= GUIDE ================= -->
     <aside class="panel" data-panel="guide" hidden>
       <section class="card prose">
-        <h2>Quy trình xuất bản low-content</h2>
+        <h2>Publishing a low-content book</h2>
         <ol>
-          <li>Chọn <b>khổ sách</b> (6" x 9" hoặc 8.5" x 11" là phổ biến) và <b>số trang</b> (chẵn, tối thiểu 24).</li>
-          <li>Chọn <b>mẫu trang</b>, chỉnh tuỳ chọn, xem trước bên phải.</li>
-          <li>Bấm <b>Tải PDF ruột sách</b>. Không cần bleed nếu nội dung không chạm mép.</li>
-          <li>Sang tab <b>Bìa sách</b>, nhập tiêu đề, tắt đường hướng dẫn rồi <b>Tải PDF bìa</b>.</li>
-          <li>Trên KDP: chọn <i>Paperback</i>, đánh dấu <i>Low-content book</i> (không cần ISBN nếu không muốn), tải 2 file PDF lên, dùng <i>Launch Previewer</i> để kiểm tra.</li>
+          <li>Pick a <b>trim size</b> (6" x 9" and 8.5" x 11" are the most common) and a <b>page count</b> (even, at least 24).</li>
+          <li>Choose a <b>page template</b>, adjust its options and check the preview on the right.</li>
+          <li>Click <b>Download interior PDF</b>. Bleed is not needed unless content touches the page edge.</li>
+          <li>Open the <b>Cover</b> tab, enter your title, turn off the guides, then <b>Download cover PDF</b>.</li>
+          <li>On KDP: choose <i>Paperback</i>, tick <i>Low-content book</i> (no ISBN required), upload both PDFs and check them in <i>Launch Previewer</i>.</li>
         </ol>
-        <h3>Lưu ý quan trọng</h3>
+        <h3>Key rules</h3>
         <ul>
-          <li>Lề gáy tối thiểu: 24–150 trang 0.375", 151–300: 0.5", 301–500: 0.625", 501–700: 0.75", trên 700: 0.875".</li>
-          <li>Lề ngoài tối thiểu 0.25" (không bleed) hoặc 0.375" (có bleed).</li>
-          <li>Sách từ 79 trang trở xuống không được in chữ trên gáy.</li>
-          <li>Vùng mã vạch: KDP tự in mã vạch 2" x 1.2" ở góc dưới bên phải bìa sau — đừng đặt chữ ở đó.</li>
-          <li>Phông mặc định chỉ hỗ trợ chữ Latin không dấu. Muốn in tiếng Việt có dấu, hãy tải phông .ttf (ví dụ Be Vietnam Pro, Roboto, Noto Sans).</li>
-          <li>Ngách bán chạy: gratitude journal, password log, mileage log, recipe book, handwriting practice cho trẻ em, habit tracker, planner theo năm.</li>
+          <li>Minimum gutter: 24–150 pages 0.375", 151–300: 0.5", 301–500: 0.625", 501–700: 0.75", over 700: 0.875".</li>
+          <li>Minimum outside margin: 0.25" without bleed, 0.375" with bleed.</li>
+          <li>Books with 79 pages or fewer cannot have spine text.</li>
+          <li>Barcode area: KDP prints a 2" x 1.2" barcode at the bottom right of the back cover — keep text out of it.</li>
+          <li>The built-in fonts only cover basic Latin characters. For accented or non-Latin text, upload a .ttf font (e.g. Roboto, Noto Sans).</li>
+          <li>Popular niches: gratitude journals, password logs, mileage logs, recipe books, kids' handwriting practice, habit trackers, yearly planners.</li>
         </ul>
       </section>
     </aside>
 
-    <!-- ================= XEM TRƯỚC ================= -->
+    <!-- ================= PREVIEW ================= -->
     <section class="preview">
       <div class="toolbar">
         <div class="nav" id="pageNav">
-          <button id="prev" type="button" aria-label="Trang trước">‹</button>
+          <button id="prev" type="button" aria-label="Previous page">‹</button>
           <span id="pageLabel"></span>
-          <button id="next" type="button" aria-label="Trang sau">›</button>
+          <button id="next" type="button" aria-label="Next page">›</button>
         </div>
-        <label class="check small"><input id="showGuides" type="checkbox" checked> Hiện lề &amp; đường xén</label>
+        <label class="check small"><input id="showGuides" type="checkbox" checked> Show margins &amp; trim</label>
         <div class="actions">
-          <button id="downloadInterior" class="primary" type="button">Tải PDF ruột sách</button>
-          <button id="downloadCover" class="primary" type="button" hidden>Tải PDF bìa</button>
+          <button id="downloadInterior" class="primary" type="button">Download interior PDF</button>
+          <button id="downloadCover" class="primary" type="button" hidden>Download cover PDF</button>
         </div>
       </div>
       <ul id="messages" class="messages"></ul>

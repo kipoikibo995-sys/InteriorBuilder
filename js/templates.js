@@ -1,15 +1,14 @@
-// Các mẫu trang low-content. Mỗi mẫu vẽ bên trong "box" (vùng an toàn, inch).
-// Chữ in trên trang để tiếng Anh vì phần lớn khách mua KDP dùng tiếng Anh; các tiêu đề chính sửa được.
+// Low-content page templates. Each template draws inside "box" (the safe area, in inches).
 (function (global) {
   'use strict';
 
-  // ---------- Hàm dùng chung ----------
+  // ---------- Shared helpers ----------
 
   function st(ctx) {
     return ctx.style; // { line, dark, text, lineW }
   }
 
-  // Dòng "Label: ________" và trả về toạ độ y kế tiếp.
+  // A "Label: ________" line.
   function labeledLine(p, ctx, label, x, y, w, size = 10) {
     const s = st(ctx);
     p.text(label, x, y, { size, color: s.text, bold: true });
@@ -17,7 +16,7 @@
     p.line(x + lw, y + 0.03, x + w, y + 0.03, { color: s.line, w: s.lineW });
   }
 
-  // Tiêu đề trang + (tuỳ chọn) dòng ngày. Trả về y bắt đầu nội dung.
+  // Page title plus an optional date line. Returns the y where content starts.
   function header(p, box, ctx, title, opts = {}) {
     const s = st(ctx);
     let y = box.y;
@@ -50,14 +49,14 @@
     p.rect(x, y - size, size, size, { color: s.dark, w: 0.6, radius: 0.015 });
   }
 
-  // Tiêu đề phần nhỏ dạng thanh.
+  // Small shaded section heading.
   function sectionTitle(p, ctx, label, x, y, w) {
     const s = st(ctx);
     p.rect(x, y - 0.17, w, 0.24, { fill: s.fill, stroke: false });
     p.text(label, x + 0.08, y, { size: 9.5, bold: true, color: s.text });
   }
 
-  // Xếp nhiều phần (tiêu đề + n dòng kẻ) để vừa khít chiều cao còn lại.
+  // Lays out sections (heading + n ruled lines) to fill the remaining height.
   function sections(p, box, ctx, y, list) {
     const titleH = 0.32, gap = 0.12;
     const totalLines = list.reduce((a, b) => a + b.lines, 0);
@@ -79,13 +78,13 @@
     return y;
   }
 
-  // Lưới chia đều trong vùng, căn giữa.
+  // Evenly spaced grid, centered in the available length.
   function centeredGrid(len, spacing) {
     const n = Math.floor(len / spacing + 1e-6);
     return { n, offset: (len - n * spacing) / 2 };
   }
 
-  // Bảng nhiều cột. cols: [{name, weight}]
+  // Multi-column table. cols: [{name, weight}]
   function table(p, box, ctx, y, cols, rowH, opts = {}) {
     const s = st(ctx);
     const totalW = cols.reduce((a, c) => a + c.weight, 0);
@@ -121,25 +120,25 @@
       });
   }
 
-  // ---------- Danh sách mẫu ----------
+  // ---------- Templates ----------
 
   const T = [];
 
   T.push({
-    id: 'blank', name: 'Trang trắng (Blank)', group: 'Cơ bản',
+    id: 'blank', name: 'Blank', group: 'Basics',
     options: [],
     draw() {},
   });
 
   T.push({
-    id: 'lined', name: 'Kẻ dòng (Lined / Ruled)', group: 'Cơ bản',
+    id: 'lined', name: 'Lined / Ruled', group: 'Basics',
     options: [
-      { key: 'spacing', label: 'Khoảng cách dòng', type: 'select', default: '0.28125', choices: [
+      { key: 'spacing', label: 'Line spacing', type: 'select', default: '0.28125', choices: [
         ['0.34375', 'Wide ruled — 8.7 mm'], ['0.28125', 'College ruled — 7.1 mm'], ['0.25', 'Narrow — 6.35 mm'] ] },
-      { key: 'head', label: 'Đầu trang', type: 'select', default: 'date', choices: [
-        ['none', 'Không có'], ['date', 'Dòng ngày (Date)'], ['title', 'Tiêu đề + ngày'] ] },
-      { key: 'title', label: 'Tiêu đề', type: 'text', default: 'Notes' },
-      { key: 'marginLine', label: 'Kẻ lề dọc', type: 'checkbox', default: false },
+      { key: 'head', label: 'Header', type: 'select', default: 'date', choices: [
+        ['none', 'None'], ['date', 'Date line'], ['title', 'Title + date'] ] },
+      { key: 'title', label: 'Title', type: 'text', default: 'Notes' },
+      { key: 'marginLine', label: 'Vertical margin line', type: 'checkbox', default: false },
     ],
     draw(p, box, o, ctx) {
       let y = box.y;
@@ -155,11 +154,11 @@
   });
 
   T.push({
-    id: 'dotgrid', name: 'Chấm bi (Dot grid)', group: 'Cơ bản',
+    id: 'dotgrid', name: 'Dot grid', group: 'Basics',
     options: [
-      { key: 'spacing', label: 'Khoảng cách chấm', type: 'select', default: '0.19685', choices: [
+      { key: 'spacing', label: 'Dot spacing', type: 'select', default: '0.19685', choices: [
         ['0.19685', '5 mm'], ['0.25', '1/4 inch'], ['0.3937', '10 mm'] ] },
-      { key: 'dot', label: 'Cỡ chấm (pt)', type: 'number', default: 1.3, min: 0.5, max: 4, step: 0.1 },
+      { key: 'dot', label: 'Dot size (pt)', type: 'number', default: 1.3, min: 0.5, max: 4, step: 0.1 },
     ],
     draw(p, box, o, ctx) {
       const sp = parseFloat(o.spacing);
@@ -172,11 +171,11 @@
   });
 
   T.push({
-    id: 'graph', name: 'Ô vuông (Graph / Grid)', group: 'Cơ bản',
+    id: 'graph', name: 'Graph / Grid', group: 'Basics',
     options: [
-      { key: 'spacing', label: 'Cỡ ô', type: 'select', default: '0.25', choices: [
-        ['0.125', '1/8 inch'], ['0.19685', '5 mm'], ['0.2', '5 ô / inch'], ['0.25', '1/4 inch'], ['0.3937', '10 mm'] ] },
-      { key: 'major', label: 'Đường đậm mỗi N ô (0 = không)', type: 'number', default: 0, min: 0, max: 10, step: 1 },
+      { key: 'spacing', label: 'Square size', type: 'select', default: '0.25', choices: [
+        ['0.125', '1/8 inch'], ['0.19685', '5 mm'], ['0.2', '5 squares / inch'], ['0.25', '1/4 inch'], ['0.3937', '10 mm'] ] },
+      { key: 'major', label: 'Bold line every N squares (0 = off)', type: 'number', default: 0, min: 0, max: 10, step: 1 },
     ],
     draw(p, box, o, ctx) {
       const s = ctx.style, sp = parseFloat(o.spacing);
@@ -192,11 +191,11 @@
   });
 
   T.push({
-    id: 'handwriting', name: 'Luyện viết (Handwriting practice)', group: 'Trẻ em',
+    id: 'handwriting', name: 'Handwriting practice', group: 'Kids',
     options: [
-      { key: 'row', label: 'Chiều cao mỗi dòng', type: 'select', default: '0.75', choices: [
-        ['0.5', '1/2 inch (lớn tuổi)'], ['0.75', '3/4 inch'], ['1', '1 inch (mẫu giáo)'] ] },
-      { key: 'name', label: 'Dòng Name / Date', type: 'checkbox', default: true },
+      { key: 'row', label: 'Row height', type: 'select', default: '0.75', choices: [
+        ['0.5', '1/2 inch (older kids)'], ['0.75', '3/4 inch'], ['1', '1 inch (preschool)'] ] },
+      { key: 'name', label: 'Name / Date line', type: 'checkbox', default: true },
     ],
     draw(p, box, o, ctx) {
       const s = ctx.style;
@@ -218,9 +217,9 @@
   });
 
   T.push({
-    id: 'music', name: 'Khuông nhạc (Music staff)', group: 'Cơ bản',
+    id: 'music', name: 'Music staff', group: 'Basics',
     options: [
-      { key: 'staves', label: 'Số khuông / trang', type: 'number', default: 10, min: 4, max: 14, step: 1 },
+      { key: 'staves', label: 'Staves per page', type: 'number', default: 10, min: 4, max: 14, step: 1 },
     ],
     draw(p, box, o, ctx) {
       const s = ctx.style, n = parseInt(o.staves, 10);
@@ -236,9 +235,9 @@
   });
 
   T.push({
-    id: 'sketch', name: 'Sổ vẽ (Sketchbook)', group: 'Sáng tạo',
+    id: 'sketch', name: 'Sketchbook', group: 'Creative',
     options: [
-      { key: 'caption', label: 'Dòng Title / Date bên dưới', type: 'checkbox', default: true },
+      { key: 'caption', label: 'Title / Date line at bottom', type: 'checkbox', default: true },
     ],
     draw(p, box, o, ctx) {
       const s = ctx.style;
@@ -253,10 +252,10 @@
   });
 
   T.push({
-    id: 'gratitude', name: 'Nhật ký biết ơn (Gratitude journal)', group: 'Nhật ký',
+    id: 'gratitude', name: 'Gratitude journal', group: 'Journals',
     options: [
-      { key: 'title', label: 'Tiêu đề', type: 'text', default: 'Gratitude Journal' },
-      { key: 'affirm', label: 'Câu khẳng định (affirmation)', type: 'checkbox', default: true },
+      { key: 'title', label: 'Title', type: 'text', default: 'Gratitude Journal' },
+      { key: 'affirm', label: 'Affirmation section', type: 'checkbox', default: true },
     ],
     draw(p, box, o, ctx) {
       let y = header(p, box, ctx, o.title, { date: true, titleSize: 16 });
@@ -272,11 +271,11 @@
   });
 
   T.push({
-    id: 'daily', name: 'Kế hoạch ngày (Daily planner)', group: 'Planner',
+    id: 'daily', name: 'Daily planner', group: 'Planners',
     options: [
-      { key: 'start', label: 'Giờ bắt đầu', type: 'number', default: 6, min: 0, max: 12, step: 1 },
-      { key: 'end', label: 'Giờ kết thúc', type: 'number', default: 21, min: 13, max: 23, step: 1 },
-      { key: 'h24', label: 'Định dạng 24 giờ', type: 'checkbox', default: false },
+      { key: 'start', label: 'Start hour', type: 'number', default: 6, min: 0, max: 12, step: 1 },
+      { key: 'end', label: 'End hour', type: 'number', default: 21, min: 13, max: 23, step: 1 },
+      { key: 'h24', label: '24-hour format', type: 'checkbox', default: false },
     ],
     draw(p, box, o, ctx) {
       const s = ctx.style;
@@ -293,7 +292,7 @@
       const colGap = 0.2, lw = box.w * 0.52, rw = box.w - lw - colGap;
       const rx = box.x + lw + colGap;
       const top = y;
-      // Lịch theo giờ
+      // Hourly schedule
       sectionTitle(p, ctx, 'Schedule', box.x, y + 0.2, lw);
       const hours = [];
       for (let h = parseInt(o.start, 10); h <= parseInt(o.end, 10); h++) hours.push(h);
@@ -306,14 +305,14 @@
         p.line(box.x + 0.5, yy - rowH + rowH * 0.5, box.x + lw, yy - rowH + rowH * 0.5, { color: s.line, w: 0.35, dash: [0.03, 0.04] });
       });
       p.line(box.x + 0.45, sy, box.x + 0.45, box.y + box.h, { color: s.line, w: s.lineW });
-      // Cột phải
+      // Right column
       const right = { x: rx, y: top, w: rw, h: box.y + box.h - top - 0.95 };
       sections(p, right, ctx, top, [
         { title: 'Top priorities', lines: 3, numbered: true },
         { title: 'To do', lines: 8, checkbox: true },
         { title: 'Notes', lines: 5 },
       ]);
-      // Uống nước
+      // Water intake
       const wy = box.y + box.h - 0.55;
       sectionTitle(p, ctx, 'Water', rx, wy, rw);
       const gw = rw / 8;
@@ -322,9 +321,9 @@
   });
 
   T.push({
-    id: 'weekly', name: 'Kế hoạch tuần (Weekly planner)', group: 'Planner',
+    id: 'weekly', name: 'Weekly planner', group: 'Planners',
     options: [
-      { key: 'monday', label: 'Tuần bắt đầu thứ Hai', type: 'checkbox', default: true },
+      { key: 'monday', label: 'Week starts on Monday', type: 'checkbox', default: true },
     ],
     draw(p, box, o, ctx) {
       const s = ctx.style;
@@ -346,10 +345,10 @@
   });
 
   T.push({
-    id: 'habit', name: 'Theo dõi thói quen (Habit tracker)', group: 'Planner',
+    id: 'habit', name: 'Habit tracker', group: 'Planners',
     options: [
-      { key: 'title', label: 'Tiêu đề', type: 'text', default: 'Habit Tracker' },
-      { key: 'rows', label: 'Số thói quen', type: 'number', default: 15, min: 5, max: 30, step: 1 },
+      { key: 'title', label: 'Title', type: 'text', default: 'Habit Tracker' },
+      { key: 'rows', label: 'Number of habits', type: 'number', default: 15, min: 5, max: 30, step: 1 },
     ],
     draw(p, box, o, ctx) {
       const s = ctx.style;
@@ -381,19 +380,19 @@
   });
 
   T.push({
-    id: 'logbook', name: 'Sổ ghi chép dạng bảng (Log book)', group: 'Log book',
+    id: 'logbook', name: 'Log book (custom columns)', group: 'Log books',
     options: [
-      { key: 'title', label: 'Tiêu đề', type: 'text', default: 'Mileage Log' },
-      { key: 'columns', label: 'Các cột (cách nhau dấu phẩy, "*2" = rộng gấp đôi)', type: 'text', default: 'Date, Start, End, Miles, Purpose*2.5' },
-      { key: 'rowH', label: 'Chiều cao hàng (inch)', type: 'number', default: 0.32, min: 0.2, max: 1, step: 0.01 },
-      { key: 'presets', label: 'Mẫu cột có sẵn', type: 'preset', target: 'columns', choices: [
-        ['Date, Start, End, Miles, Purpose*2.5', 'Mileage log (quãng đường)'],
-        ['Date, Time In, Time Out, Name*2, Signature*1.5', 'Visitor log (khách)'],
-        ['Date, Description*3, Income, Expense, Balance', 'Budget log (thu chi)'],
-        ['Date, Time, Location*2, Depth, Duration, Notes*2', 'Dive log (lặn)'],
-        ['Date, Medication*2, Dose, Time, Notes*2', 'Medication log (thuốc)'],
-        ['Date, Exercise*2, Sets, Reps, Weight, Notes*1.5', 'Workout log (tập luyện)'],
-        ['Date, Book Title*2.5, Author*1.5, Pages, Rating', 'Reading log (đọc sách)'],
+      { key: 'title', label: 'Title', type: 'text', default: 'Mileage Log' },
+      { key: 'columns', label: 'Columns (comma-separated, "*2" = double width)', type: 'text', default: 'Date, Start, End, Miles, Purpose*2.5' },
+      { key: 'rowH', label: 'Row height (in)', type: 'number', default: 0.32, min: 0.2, max: 1, step: 0.01 },
+      { key: 'presets', label: 'Column presets', type: 'preset', target: 'columns', choices: [
+        ['Date, Start, End, Miles, Purpose*2.5', 'Mileage log'],
+        ['Date, Time In, Time Out, Name*2, Signature*1.5', 'Visitor log'],
+        ['Date, Description*3, Income, Expense, Balance', 'Budget log'],
+        ['Date, Time, Location*2, Depth, Duration, Notes*2', 'Dive log'],
+        ['Date, Medication*2, Dose, Time, Notes*2', 'Medication log'],
+        ['Date, Exercise*2, Sets, Reps, Weight, Notes*1.5', 'Workout log'],
+        ['Date, Book Title*2.5, Author*1.5, Pages, Rating', 'Reading log'],
       ] },
     ],
     draw(p, box, o, ctx) {
@@ -405,10 +404,10 @@
   });
 
   T.push({
-    id: 'password', name: 'Sổ mật khẩu (Password log)', group: 'Log book',
+    id: 'password', name: 'Password log', group: 'Log books',
     options: [
-      { key: 'per', label: 'Số mục / trang', type: 'number', default: 4, min: 2, max: 6, step: 1 },
-      { key: 'az', label: 'Ô chữ cái A–Z đầu trang', type: 'checkbox', default: true },
+      { key: 'per', label: 'Entries per page', type: 'number', default: 4, min: 2, max: 6, step: 1 },
+      { key: 'az', label: 'A–Z letter tab box', type: 'checkbox', default: true },
     ],
     draw(p, box, o, ctx) {
       const s = ctx.style;
@@ -432,7 +431,7 @@
   });
 
   T.push({
-    id: 'recipe', name: 'Sổ công thức nấu ăn (Recipe book)', group: 'Nhật ký',
+    id: 'recipe', name: 'Recipe book', group: 'Journals',
     options: [],
     draw(p, box, o, ctx) {
       const s = ctx.style;
@@ -467,10 +466,10 @@
   }
 
   T.push({
-    id: 'todo', name: 'Danh sách việc cần làm (To-do list)', group: 'Planner',
+    id: 'todo', name: 'To-do list', group: 'Planners',
     options: [
-      { key: 'title', label: 'Tiêu đề', type: 'text', default: 'To Do List' },
-      { key: 'spacing', label: 'Khoảng cách dòng (inch)', type: 'number', default: 0.36, min: 0.25, max: 0.6, step: 0.01 },
+      { key: 'title', label: 'Title', type: 'text', default: 'To Do List' },
+      { key: 'spacing', label: 'Line spacing (in)', type: 'number', default: 0.36, min: 0.25, max: 0.6, step: 0.01 },
     ],
     draw(p, box, o, ctx) {
       let y = header(p, box, ctx, o.title, { date: true, titleSize: 16 });
@@ -483,9 +482,9 @@
   });
 
   T.push({
-    id: 'cornell', name: 'Ghi chép Cornell (Cornell notes)', group: 'Cơ bản',
+    id: 'cornell', name: 'Cornell notes', group: 'Basics',
     options: [
-      { key: 'spacing', label: 'Khoảng cách dòng (inch)', type: 'number', default: 0.28, min: 0.22, max: 0.4, step: 0.01 },
+      { key: 'spacing', label: 'Line spacing (in)', type: 'number', default: 0.28, min: 0.22, max: 0.4, step: 0.01 },
     ],
     draw(p, box, o, ctx) {
       const s = ctx.style;
@@ -507,7 +506,7 @@
     },
   });
 
-  // Trang "Sách này thuộc về" (front matter).
+  // "This book belongs to" page (front matter).
   const OWNER = {
     id: 'owner', name: 'This book belongs to',
     draw(p, box, o, ctx) {

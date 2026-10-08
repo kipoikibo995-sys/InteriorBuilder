@@ -104,7 +104,7 @@ input:focus, select:focus { outline: 2px solid var(--accent); outline-offset: -1
 
 .row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .hint { color: var(--muted); font-size: 12.5px; margin: 4px 0 8px; }
-.opts:empty::after { content: "Mẫu này không có tuỳ chọn."; color: var(--muted); font-size: 12.5px; }
+.opts:empty::after { content: "This template has no options."; color: var(--muted); font-size: 12.5px; }
 
 button { font: inherit; cursor: pointer; }
 .primary {

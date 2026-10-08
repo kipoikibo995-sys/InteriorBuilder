@@ -1,11 +1,11 @@
-// Dựng trang ruột sách và bìa, xuất PDF. Không phụ thuộc DOM — dùng được cả trên trình duyệt lẫn Node.
+// Builds interior pages and the cover, and exports PDFs. No DOM dependency, so it runs in the browser and in Node.
 (function (global) {
   'use strict';
 
   const KDP = global.KDP;
   const Templates = global.Templates;
 
-  // Loại của trang số n (đánh số từ 1).
+  // Kind of page n (1-based).
   function pageKind(cfg, n) {
     if (cfg.ownerPage && n === 1) return 'owner';
     if (cfg.ownerPage && n === 2) return 'blank';
@@ -21,7 +21,7 @@
     }
     p.rect(box.x, box.y, box.w, box.h, { color: '#2563eb', w: 0.5, dash: [0.04, 0.04] });
     const gx = box.recto ? box.trimX : box.trimX + cfg.trim.w;
-    p.text('gáy', gx + (box.recto ? 0.06 : -0.06), box.trimY + cfg.trim.h / 2, {
+    p.text('spine', gx + (box.recto ? 0.06 : -0.06), box.trimY + cfg.trim.h / 2, {
       size: 7, color: '#2563eb', align: box.recto ? 'left' : 'right',
     });
   }
@@ -39,7 +39,7 @@
     }
   }
 
-  // Vẽ trang n. options.guides: vẽ lề và đường xén (chỉ để xem trước).
+  // Draws page n. options.guides: draw margins and trim lines (preview only).
   function renderPage(p, cfg, n, options = {}) {
     const box = KDP.contentBox(cfg, n);
     if (options.guides) drawGuides(p, cfg, box);
@@ -88,7 +88,7 @@
     return doc;
   }
 
-  // ---------- Bìa ----------
+  // ---------- Cover ----------
 
   function coverLayout(cfg) {
     const dims = KDP.coverSize(cfg.trim, cfg.pages, cfg.paper);
@@ -120,7 +120,7 @@
     p.rect(0, 0, L.w, L.h, { fill: c.bg, stroke: false });
     if (c.image) p.image(c.image, L.frontX, 0, L.w - L.frontX, L.h);
 
-    // Mặt trước: tiêu đề, phụ đề, tác giả trong vùng an toàn (cách mép xén 0.25").
+    // Front: title, subtitle and author inside the safe zone (0.25" from trim).
     const safe = 0.25;
     const fx = L.frontX + safe, fw = cfg.trim.w - 2 * safe;
     const cx = L.frontX + cfg.trim.w / 2;
@@ -145,7 +145,7 @@
       p.text(c.author, cx, L.trimY + cfg.trim.h - safe - 0.35, { size: titleSize * 0.4, color: fg, align: 'center' });
     }
 
-    // Gáy: chữ chạy từ trên xuống (chuẩn sách tiếng Anh), chỉ khi đủ số trang.
+    // Spine: text runs top to bottom (US convention), only when the page count allows it.
     const spineOk = cfg.pages > KDP.SPINE_TEXT_MIN_PAGES && c.spine;
     if (spineOk) {
       const size = Math.min(14, L.spine * 72 * 0.5);
@@ -167,7 +167,7 @@
     const s = 0.25;
     p.rect(L.backX + s, L.B + s, cfg.trim.w - 2 * s, cfg.trim.h - 2 * s, { color: green, w: 0.5, dash: [0.04, 0.04] });
     p.rect(L.frontX + s, L.B + s, cfg.trim.w - 2 * s, cfg.trim.h - 2 * s, { color: green, w: 0.5, dash: [0.04, 0.04] });
-    // Vùng mã vạch KDP: 2" x 1.2", cách mép xén 0.25" ở góc dưới phải bìa sau.
+    // KDP barcode area: 2" x 1.2", 0.25" from trim at the bottom-right of the back cover.
     const bx = L.spineX - s - 2, by = L.B + cfg.trim.h - s - 1.2;
     p.rect(bx, by, 2, 1.2, { fill: '#ffffff', color: red, w: 0.75 });
     p.text('BARCODE', bx + 1, by + 0.65, { size: 9, color: red, align: 'center', bold: true });
