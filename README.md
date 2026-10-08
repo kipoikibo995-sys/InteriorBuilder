@@ -36,7 +36,9 @@ A browser-based tool for creating **print-ready book interiors and covers** for 
 | `js/templates.js` | Page templates. Add a new one with another `T.push({...})` entry |
 | `js/book.js` | Plans the book (front matter, puzzle and answer pages), builds pages and covers, exports PDFs (no DOM dependency) |
 | `js/app.js` | User interface |
+| `css/style.css` | UI styles, matching the KoJi Academy look (kojilaunch.com) |
 | `vendor/jspdf.umd.min.js` | jsPDF 2.5.2 (MIT) |
+| `vendor/fonts/` | DM Sans variable font (SIL OFL), bundled for offline use |
 
 ## Tests
 
